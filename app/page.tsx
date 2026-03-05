@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 type Mode = "TIME" | "VOLUME";
 type Pace = "HIGH" | "BALANCED" | "PREMIUM";
@@ -42,7 +42,6 @@ const PRICING = {
     fullDay: 4000
   },
   multi: {
-    // per-day rates
     day1: { halfDay: 2500, fullDay: 4000 },
     days2to3: { halfDay: 2350, fullDay: 3750 },
     days4plus: { halfDay: 2200, fullDay: 3500 }
@@ -50,13 +49,13 @@ const PRICING = {
   addOns: {
     secondStation: { halfDay: 1500, fullDay: 2500 }, // per day
     lightRetouchPerStation: { halfDay: 500, fullDay: 1000 }, // per day, per station
-    makeupArtist: { halfDay: 1000, fullDay: 1800 } // per day
+    makeupArtist: { halfDay: 1000, fullDay: 1800 } // per day, per makeup artist
   }
 };
 
 const PACE = {
-  HIGH: { label: "High Volume", displayRange: [20, 30], conservative: 20 },
-  BALANCED: { label: "Balanced", displayRange: [15, 22], conservative: 15 },
+  HIGH: { label: "High Volume", displayRange: [25, 35], conservative: 25 },
+  BALANCED: { label: "Balanced", displayRange: [18, 25], conservative: 18 },
   PREMIUM: { label: "Premium Experience", displayRange: [12, 15], conservative: 12 }
 } satisfies Record<Pace, { label: string; displayRange: [number, number]; conservative: number }>;
 
@@ -67,6 +66,9 @@ export default function Page() {
   const [isMultiDay, setIsMultiDay] = useState(false);
   const [days, setDays] = useState(1);
   const [hoursPerDay, setHoursPerDay] = useState(4);
+
+  // Demand toggle (OFF by default to avoid sticker shock)
+  const [useDemandEstimate, setUseDemandEstimate] = useState(false);
 
   // Volume inputs
   const [volumeInputMode, setVolumeInputMode] = useState<VolumeInputMode>("HEADSHOTS");
@@ -80,13 +82,16 @@ export default function Page() {
   const [stationsOverride, setStationsOverride] = useState<1 | 2>(1);
 
   const [addMakeup, setAddMakeup] = useState(false);
+  const [makeupArtists, setMakeupArtists] = useState<1 | 2>(1); // NEW: scales pricing
   const [addLightRetouch, setAddLightRetouch] = useState(false);
 
-  // Lead capture
-  const [leadFirstName, setLeadFirstName] = useState("");
+  // Lead capture (UI tweak: minimal by default)
   const [leadEmail, setLeadEmail] = useState("");
+  const [showLeadDetails, setShowLeadDetails] = useState(false);
+  const [leadFirstName, setLeadFirstName] = useState("");
   const [leadIntent, setLeadIntent] = useState<LeadIntent>("budgeting");
   const [leadPhone, setLeadPhone] = useState("");
+
   const [sending, setSending] = useState(false);
   const [sentOk, setSentOk] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
@@ -123,17 +128,23 @@ export default function Page() {
   const perDayLightRetouch = isHalfDayPerDay ? PRICING.addOns.lightRetouchPerStation.halfDay : PRICING.addOns.lightRetouchPerStation.fullDay;
   const perDayMakeup = isHalfDayPerDay ? PRICING.addOns.makeupArtist.halfDay : PRICING.addOns.makeupArtist.fullDay;
 
+  const paceMeta = PACE[pace];
+
+  // Computed expected headshots (nullable when demand toggle is OFF)
   const computedExpectedHeadshots = useMemo(() => {
+    if (!useDemandEstimate) return null;
+
     if (volumeInputMode === "HEADSHOTS") return clamp(expectedHeadshots, 1, 50000);
+
     const a = clamp(attendees, 1, 200000);
     const p = clamp(participationRate, 1, 90) / 100;
     return Math.max(1, Math.round(a * p));
-  }, [volumeInputMode, expectedHeadshots, attendees, participationRate]);
+  }, [useDemandEstimate, volumeInputMode, expectedHeadshots, attendees, participationRate]);
 
-  const paceMeta = PACE[pace];
-
-  // Station recommendation (conservative to avoid overpromising)
+  // Station recommendation (only meaningful when demand is provided)
   const recommendedStations = useMemo(() => {
+    if (!useDemandEstimate || computedExpectedHeadshots == null) return 1;
+
     const hours = totalHours;
     const capacityPerStation = hours * paceMeta.conservative;
     const needed = Math.ceil(computedExpectedHeadshots / Math.max(1, capacityPerStation));
@@ -141,13 +152,22 @@ export default function Page() {
     if (needed <= 1) return 1;
     if (needed === 2) return 2;
     return 3; // 3+ signals multi-station team
-  }, [totalHours, paceMeta, computedExpectedHeadshots]);
+  }, [useDemandEstimate, computedExpectedHeadshots, totalHours, paceMeta]);
 
   const stations = useMemo(() => {
     if (!autoStations) return stationsOverride;
     // If 3+ recommended, keep UI in 2-station mode but show the "3+" banner
     return recommendedStations >= 3 ? 2 : (recommendedStations as 1 | 2);
   }, [autoStations, stationsOverride, recommendedStations]);
+
+  // Keep makeup artist count sensible when stations change
+const makeupArtistsMax = useMemo(() => (stations === 2 ? 2 : 1), [stations]);
+
+useEffect(() => {
+  if (makeupArtists > makeupArtistsMax) {
+    setMakeupArtists(makeupArtistsMax as 1 | 2);
+  }
+}, [makeupArtists, makeupArtistsMax]);
 
   // Capacity estimate range (display) based on pace range * total hours * stations
   const capacityRange = useMemo(() => {
@@ -167,7 +187,7 @@ export default function Page() {
     const base = perDayBaseRate * totalDays;
     const stationAdd = stations === 2 ? perDaySecondStation * totalDays : 0;
     const lightRetouchAdd = addLightRetouch ? perDayLightRetouch * stations * totalDays : 0;
-    const makeupAdd = addMakeup ? perDayMakeup * totalDays : 0;
+    const makeupAdd = addMakeup ? perDayMakeup * makeupArtists * totalDays : 0; // NEW: scales by makeupArtists
 
     const exactTotal = base + stationAdd + lightRetouchAdd + makeupAdd;
 
@@ -185,18 +205,22 @@ export default function Page() {
     addMakeup,
     perDaySecondStation,
     perDayLightRetouch,
-    perDayMakeup
+    perDayMakeup,
+    makeupArtists
   ]);
 
-  const showCustomBanner =
-    recommendedStations >= 3 || (isMultiDay && totalDays >= 3 && computedExpectedHeadshots > capacityRange.high);
-
-  // Demand confidence indicator
+  // Demand confidence indicator (only if demand is provided)
   const demandStatus = useMemo(() => {
+    if (!useDemandEstimate || computedExpectedHeadshots == null) return null;
     if (computedExpectedHeadshots <= capacityRange.low) return "good" as const;
     if (computedExpectedHeadshots > capacityRange.high) return "tight" as const;
     return "close" as const;
-  }, [computedExpectedHeadshots, capacityRange.low, capacityRange.high]);
+  }, [useDemandEstimate, computedExpectedHeadshots, capacityRange.low, capacityRange.high]);
+
+  const showCustomBanner = useMemo(() => {
+    if (!useDemandEstimate || computedExpectedHeadshots == null) return false;
+    return recommendedStations >= 3 || (isMultiDay && totalDays >= 3 && computedExpectedHeadshots > capacityRange.high);
+  }, [useDemandEstimate, computedExpectedHeadshots, recommendedStations, isMultiDay, totalDays, capacityRange.high]);
 
   const hoursLabel = useMemo(() => {
     if (!isMultiDay) return `${roundToHalf(perDayHours)} hours`;
@@ -207,11 +231,12 @@ export default function Page() {
   }, [isMultiDay, perDayHours, days]);
 
   const expectedHeadshotsLabel = useMemo(() => {
+    if (!useDemandEstimate || computedExpectedHeadshots == null) return "Not provided (capacity estimate only)";
     if (volumeInputMode === "HEADSHOTS") return `${computedExpectedHeadshots} expected headshots`;
     const a = clamp(attendees, 1, 200000);
     const p = clamp(participationRate, 1, 90);
     return `${a} attendees @ ${p}% ≈ ${computedExpectedHeadshots} headshots`;
-  }, [volumeInputMode, computedExpectedHeadshots, attendees, participationRate]);
+  }, [useDemandEstimate, computedExpectedHeadshots, volumeInputMode, attendees, participationRate]);
 
   const paceLabel = useMemo(() => {
     const [low, high] = paceMeta.displayRange;
@@ -226,15 +251,13 @@ export default function Page() {
     try {
       const email = leadEmail.trim();
       if (!email.includes("@")) throw new Error("Please enter a valid email address.");
-
       if (pricing.isCustom) throw new Error("Please request a custom quote for this configuration.");
 
       const payload = {
-        quoteType: "booth" as const,
         email,
-        firstName: leadFirstName.trim() || undefined,
-        phone: leadIntent === "ready_for_call" ? leadPhone.trim() || undefined : undefined,
-        intent: leadIntent,
+        firstName: showLeadDetails ? leadFirstName.trim() || undefined : undefined,
+        phone: showLeadDetails && leadIntent === "ready_for_call" ? leadPhone.trim() || undefined : undefined,
+        intent: showLeadDetails ? leadIntent : "budgeting",
 
         estimateLow: pricing.low,
         estimateHigh: pricing.high,
@@ -242,7 +265,7 @@ export default function Page() {
         hoursLabel,
         expectedHeadshotsLabel,
         paceLabel,
-        recommendedStations,
+        recommendedStations: useDemandEstimate ? (recommendedStations >= 3 ? 3 : recommendedStations) : stations,
         capacityLow: capacityRange.low,
         capacityHigh: capacityRange.high,
         disclaimerText: DISCLAIMER_TEXT
@@ -269,9 +292,7 @@ export default function Page() {
     <main className="min-h-screen bg-white">
       <div className="mx-auto max-w-5xl px-4 py-10">
         <header className="space-y-3">
-          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900">
-            Conference Headshot Booth Cost Calculator
-          </h1>
+          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900">Conference Headshot Booth Cost Calculator</h1>
           <p className="text-slate-600 text-base sm:text-lg">
             Estimate a realistic budget range, recommended stations, and participant capacity for your event — without line-item confusion.
           </p>
@@ -293,7 +314,10 @@ export default function Page() {
                   className={`rounded-lg px-4 py-2 text-sm font-medium ${
                     mode === "VOLUME" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
                   }`}
-                  onClick={() => setMode("VOLUME")}
+                  onClick={() => {
+                    setMode("VOLUME");
+                    setUseDemandEstimate(true);
+                  }}
                 >
                   I know how many people we expect
                 </button>
@@ -305,13 +329,14 @@ export default function Page() {
             </div>
 
             <p className="mt-3 text-sm text-slate-600">
-              Pricing is based on time on-site. Volume estimates help determine the recommended number of stations.
+              Pricing is based on time on-site. Demand estimate is optional — turn it on when you want station recommendations to avoid lines.
             </p>
           </div>
 
           <div className="grid gap-6 p-4 sm:p-6 lg:grid-cols-2">
             {/* Left: Inputs */}
             <div className="space-y-6">
+              {/* Time */}
               <div className="rounded-xl border border-slate-200 p-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-base font-semibold text-slate-900">Time</h2>
@@ -379,11 +404,10 @@ export default function Page() {
                 </div>
               </div>
 
+              {/* Pace */}
               <div className="rounded-xl border border-slate-200 p-4">
                 <h2 className="text-base font-semibold text-slate-900">Pace</h2>
-                <p className="mt-1 text-sm text-slate-600">
-                  Faster flow increases capacity. Premium pacing allows more coaching per person.
-                </p>
+                <p className="mt-1 text-sm text-slate-600">Faster flow increases capacity. Premium pacing allows more coaching per person.</p>
 
                 <div className="mt-4 grid gap-2">
                   {(["HIGH", "BALANCED", "PREMIUM"] as Pace[]).map((p) => {
@@ -410,74 +434,101 @@ export default function Page() {
                 </div>
               </div>
 
+              {/* Demand toggle + Volume inputs */}
               <div className="rounded-xl border border-slate-200 p-4">
-                <h2 className="text-base font-semibold text-slate-900">Volume estimate</h2>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-base font-semibold text-slate-900">Demand estimate (optional)</h2>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Turn this on if you want help choosing stations to avoid lines. If you’re not sure yet, you can leave it off.
+                    </p>
+                  </div>
 
-                <div className="mt-3 inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
-                  <button
-                    className={`rounded-lg px-3 py-2 text-xs font-medium ${
-                      volumeInputMode === "HEADSHOTS" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
-                    }`}
-                    onClick={() => setVolumeInputMode("HEADSHOTS")}
-                  >
-                    Expected headshots
-                  </button>
-                  <button
-                    className={`rounded-lg px-3 py-2 text-xs font-medium ${
-                      volumeInputMode === "ATTENDEES" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
-                    }`}
-                    onClick={() => setVolumeInputMode("ATTENDEES")}
-                  >
-                    Total attendees
-                  </button>
+                  <label className="inline-flex items-center gap-2 text-sm text-slate-700 whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-slate-300"
+                      checked={useDemandEstimate}
+                      onChange={(e) => setUseDemandEstimate(e.target.checked)}
+                    />
+                    Estimate demand
+                  </label>
                 </div>
 
-                <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  {volumeInputMode === "HEADSHOTS" ? (
-                    <div className="sm:col-span-2">
-                      <label className="text-sm font-medium text-slate-700">How many people do you want photographed?</label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={expectedHeadshots}
-                        onChange={(e) => setExpectedHeadshots(clamp(parseInt(e.target.value || "1", 10), 1, 50000))}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
-                      />
-                      <p className="mt-1 text-xs text-slate-500">We’ll recommend stations based on your time + pace.</p>
+                {!useDemandEstimate ? (
+                  <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
+                    We’ll show <span className="font-semibold text-slate-900">capacity</span> based on time, pace, and stations. Turn on demand estimate when you’re ready.
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-4 inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
+                      <button
+                        className={`rounded-lg px-3 py-2 text-xs font-medium ${
+                          volumeInputMode === "HEADSHOTS" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                        }`}
+                        onClick={() => setVolumeInputMode("HEADSHOTS")}
+                      >
+                        Expected headshots
+                      </button>
+                      <button
+                        className={`rounded-lg px-3 py-2 text-xs font-medium ${
+                          volumeInputMode === "ATTENDEES" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                        }`}
+                        onClick={() => setVolumeInputMode("ATTENDEES")}
+                      >
+                        Total attendees
+                      </button>
                     </div>
-                  ) : (
-                    <>
-                      <div>
-                        <label className="text-sm font-medium text-slate-700">Estimated total attendees</label>
-                        <input
-                          type="number"
-                          min={1}
-                          value={attendees}
-                          onChange={(e) => setAttendees(clamp(parseInt(e.target.value || "1", 10), 1, 200000))}
-                          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-slate-700">Estimated participation</label>
-                        <input
-                          type="number"
-                          min={1}
-                          max={90}
-                          value={participationRate}
-                          onChange={(e) => setParticipationRate(clamp(parseInt(e.target.value || "25", 10), 1, 90))}
-                          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
-                        />
-                        <p className="mt-1 text-xs text-slate-500">Typical range is 10–30%</p>
-                      </div>
-                    </>
-                  )}
-                </div>
 
-                <div className="mt-3 text-sm text-slate-600">
-                  Estimated headshots: <span className="font-semibold text-slate-900">{computedExpectedHeadshots}</span>
-                </div>
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                      {volumeInputMode === "HEADSHOTS" ? (
+                        <div className="sm:col-span-2">
+                          <label className="text-sm font-medium text-slate-700">How many people do you want photographed?</label>
+                          <input
+                            type="number"
+                            min={1}
+                            value={expectedHeadshots}
+                            onChange={(e) => setExpectedHeadshots(clamp(parseInt(e.target.value || "1", 10), 1, 50000))}
+                            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+                          />
+                          <p className="mt-1 text-xs text-slate-500">We’ll recommend stations based on your time + pace.</p>
+                        </div>
+                      ) : (
+                        <>
+                          <div>
+                            <label className="text-sm font-medium text-slate-700">Estimated total attendees</label>
+                            <input
+                              type="number"
+                              min={1}
+                              value={attendees}
+                              onChange={(e) => setAttendees(clamp(parseInt(e.target.value || "1", 10), 1, 200000))}
+                              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-slate-700">Estimated participation</label>
+                            <input
+                              type="number"
+                              min={1}
+                              max={90}
+                              value={participationRate}
+                              onChange={(e) => setParticipationRate(clamp(parseInt(e.target.value || "25", 10), 1, 90))}
+                              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+                            />
+                            <p className="mt-1 text-xs text-slate-500">Typical range is 10–30%</p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="mt-3 text-sm text-slate-600">
+                      Estimated headshots: <span className="font-semibold text-slate-900">{computedExpectedHeadshots ?? "—"}</span>
+                    </div>
+                  </>
+                )}
               </div>
 
+              {/* Stations */}
               <div className="rounded-xl border border-slate-200 p-4">
                 <h2 className="text-base font-semibold text-slate-900">Stations</h2>
                 <div className="mt-3 flex items-center justify-between gap-3">
@@ -503,24 +554,58 @@ export default function Page() {
                   )}
                 </div>
 
-                <p className="mt-2 text-xs text-slate-500">Station recommendation is conservative to avoid overpromising throughput.</p>
+                <p className="mt-2 text-xs text-slate-500">
+                  Station recommendation is conservative to avoid overpromising throughput. Turn on demand estimate above to calculate “avoid lines” recommendations.
+                </p>
               </div>
 
+              {/* Options */}
               <div className="rounded-xl border border-slate-200 p-4">
                 <h2 className="text-base font-semibold text-slate-900">Options</h2>
-                <div className="mt-3 space-y-2">
+
+                <div className="mt-3 space-y-3">
                   <label className="flex items-start gap-3 text-sm text-slate-700">
                     <input
                       type="checkbox"
                       className="mt-1 h-4 w-4 rounded border-slate-300"
                       checked={addMakeup}
-                      onChange={(e) => setAddMakeup(e.target.checked)}
+                      onChange={(e) => {
+                        const on = e.target.checked;
+                        setAddMakeup(on);
+                        if (on) setMakeupArtists(1);
+                      }}
                     />
                     <span>
                       <span className="font-medium text-slate-900">Makeup artist touch-up station</span>
                       <span className="block text-xs text-slate-500">Quick touch-ups to keep participants camera-ready.</span>
                     </span>
                   </label>
+
+                  {addMakeup && (
+                    <div className="ml-7 rounded-lg bg-slate-50 p-3">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="text-sm text-slate-700">
+                          <span className="font-medium text-slate-900">Makeup artists</span>
+                          <div className="text-xs text-slate-500">Most events use 1 makeup artist for 1–2 stations. Choose 2 for peak flow.</div>
+                        </div>
+
+                        <select
+                          value={makeupArtists}
+                          onChange={(e) => setMakeupArtists(parseInt(e.target.value, 10) as 1 | 2)}
+                          className="w-full sm:w-auto rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                        >
+                          <option value={1}>1 makeup artist</option>
+                          {stations === 2 && <option value={2}>2 makeup artists</option>}
+                        </select>
+                      </div>
+
+                      {stations === 1 && (
+                        <div className="mt-2 text-xs text-slate-500">
+                          (Using 1 station right now — add a 2nd station to enable 2 makeup artists.)
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <label className="flex items-start gap-3 text-sm text-slate-700">
                     <input
@@ -561,17 +646,11 @@ export default function Page() {
                       </div>
                     </div>
 
-                    {/* Lead capture */}
+                    {/* Lead capture (NEW: minimal-first UI) */}
                     <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-                      <div className="text-sm font-semibold text-slate-900">Send My Conference Headshot Estimate</div>
+                      <div className="text-sm font-semibold text-slate-900">Email my estimate</div>
 
-                      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <input
-                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
-                          placeholder="First name (optional)"
-                          value={leadFirstName}
-                          onChange={(e) => setLeadFirstName(e.target.value)}
-                        />
+                      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                         <input
                           className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
                           placeholder="Email (required)"
@@ -579,62 +658,78 @@ export default function Page() {
                           onChange={(e) => setLeadEmail(e.target.value)}
                           inputMode="email"
                         />
+                        <button
+                          className="w-full sm:w-auto rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                          disabled={sending || !emailOk || pricing.isCustom}
+                          onClick={sendEstimateEmail}
+                        >
+                          {sending ? "Sending…" : "Send"}
+                        </button>
                       </div>
 
-                      {!emailOk && leadEmail.trim().length > 0 && (
-                        <div className="mt-2 text-xs text-red-700">Please enter a valid email address.</div>
-                      )}
+                      <div className="mt-2 flex items-center justify-between">
+                        <button
+                          type="button"
+                          onClick={() => setShowLeadDetails((v) => !v)}
+                          className="text-xs font-medium text-slate-700 hover:text-slate-900"
+                        >
+                          {showLeadDetails ? "Hide optional details" : "Add optional details (name / phone / intent)"}
+                        </button>
 
-                      <div className="mt-3 flex flex-col gap-2 text-sm text-slate-700">
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="radio"
-                            name="intent"
-                            checked={leadIntent === "budgeting"}
-                            onChange={() => setLeadIntent("budgeting")}
-                          />
-                          I’m budgeting / gathering quotes
-                        </label>
-
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="radio"
-                            name="intent"
-                            checked={leadIntent === "ready_for_call"}
-                            onChange={() => setLeadIntent("ready_for_call")}
-                          />
-                          I’m ready for a quick planning call
-                        </label>
+                        {sentOk && <div className="text-xs text-green-700">Sent ✓</div>}
                       </div>
 
-                      {leadIntent === "ready_for_call" && (
-                        <div className="mt-3">
-                          <input
-                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
-                            placeholder="Phone (optional)"
-                            value={leadPhone}
-                            onChange={(e) => setLeadPhone(e.target.value)}
-                            inputMode="tel"
-                          />
+                      {showLeadDetails && (
+                        <div className="mt-3 space-y-3">
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <input
+                              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
+                              placeholder="First name (optional)"
+                              value={leadFirstName}
+                              onChange={(e) => setLeadFirstName(e.target.value)}
+                            />
+                            <div className="text-xs text-slate-500 sm:text-right sm:self-center">
+                              (Optional — helps us personalize your estimate)
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col gap-2 text-sm text-slate-700">
+                            <label className="flex items-center gap-2">
+                              <input
+                                type="radio"
+                                name="intent"
+                                checked={leadIntent === "budgeting"}
+                                onChange={() => setLeadIntent("budgeting")}
+                              />
+                              I’m budgeting / gathering quotes
+                            </label>
+
+                            <label className="flex items-center gap-2">
+                              <input
+                                type="radio"
+                                name="intent"
+                                checked={leadIntent === "ready_for_call"}
+                                onChange={() => setLeadIntent("ready_for_call")}
+                              />
+                              I’m ready for a quick planning call
+                            </label>
+                          </div>
+
+                          {leadIntent === "ready_for_call" && (
+                            <input
+                              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
+                              placeholder="Phone (optional)"
+                              value={leadPhone}
+                              onChange={(e) => setLeadPhone(e.target.value)}
+                              inputMode="tel"
+                            />
+                          )}
                         </div>
                       )}
 
-                      <button
-                        className="mt-4 w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
-                        disabled={sending || !emailOk || pricing.isCustom}
-                        onClick={sendEstimateEmail}
-                      >
-                        {sending ? "Sending…" : "Send My Conference Headshot Estimate"}
-                      </button>
-
-                      {sentOk && (
-                        <div className="mt-3 text-sm text-green-700">
-                          Estimate sent — check your inbox. You can forward it to your team.
-                        </div>
-                      )}
                       {sendError && <div className="mt-3 text-sm text-red-700">{sendError}</div>}
 
-                      <div className="mt-2 text-xs text-slate-500">We’ll email your estimate so you can share it internally.</div>
+                      <div className="mt-3 text-xs text-slate-500">We’ll email your estimate so you can forward it internally.</div>
                     </div>
 
                     <div className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
@@ -673,24 +768,33 @@ export default function Page() {
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <h2 className="text-base font-semibold text-slate-900">Recommended setup</h2>
 
-                {recommendedStations >= 3 ? (
+                {useDemandEstimate && recommendedStations >= 3 ? (
                   <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
                     <div className="text-sm font-semibold text-slate-900">Multi-station team recommended (3+)</div>
                     <div className="mt-1 text-sm text-slate-600">
-                      Based on your time, pace, and volume, you’ll likely need 3+ stations to meet your goals.
+                      Based on your time, pace, and expected demand, you’ll likely need 3+ stations to meet your goals.
                     </div>
                   </div>
                 ) : (
                   <div className="mt-3 grid grid-cols-2 gap-3">
-                    <Stat label="Recommended stations" value={autoStations ? `${recommendedStations}` : `${stations}`} />
+                    <Stat
+                      label={useDemandEstimate ? "Recommended stations to avoid lines" : "Stations (capacity estimate)"}
+                      value={`${stations}`}
+                    />
                     <Stat label="Pricing tier" value={isHalfDayPerDay ? "Half-Day" : "Full-Day"} />
                   </div>
                 )}
 
                 <div className="mt-3 grid grid-cols-2 gap-3">
                   <Stat label="Estimated capacity" value={`${capacityRange.low}–${capacityRange.high}`} />
-                  <Stat label="Estimated headshots" value={`${computedExpectedHeadshots}`} />
+                  <Stat label="Estimated headshots" value={computedExpectedHeadshots == null ? "—" : `${computedExpectedHeadshots}`} />
                 </div>
+
+                {!useDemandEstimate && (
+                  <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
+                    Want station recommendations to avoid lines? Turn on <span className="font-semibold text-slate-900">Demand estimate</span> and enter your best guess.
+                  </div>
+                )}
 
                 {demandStatus === "good" && (
                   <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
