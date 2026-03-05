@@ -5,6 +5,7 @@ import React, { useMemo, useState } from "react";
 type Mode = "TIME" | "VOLUME";
 type Pace = "HIGH" | "BALANCED" | "PREMIUM";
 type VolumeInputMode = "HEADSHOTS" | "ATTENDEES";
+type LeadIntent = "budgeting" | "ready_for_call";
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
@@ -22,16 +23,18 @@ function formatHoursToDaysHours(totalHours: number) {
   const half = remainder - whole >= 0.5 ? 0.5 : 0;
   const minutes = half === 0.5 ? 30 : 0;
 
-  if (days <= 0) {
-    // e.g., 3.5h
-    return minutes ? `${whole}h 30m` : `${whole}h`;
-  }
-  // e.g., 1d 4h 30m
+  if (days <= 0) return minutes ? `${whole}h 30m` : `${whole}h`;
+
   const parts: string[] = [`${days}d`];
   if (whole) parts.push(`${whole}h`);
   if (minutes) parts.push(`${minutes}m`);
   return parts.join(" ");
 }
+
+const QUOTE_URL = "https://headshotprosaz.com/professional-headshot-booth-phoenix/#quote";
+
+const DISCLAIMER_TEXT =
+  "Estimates are informational and not a binding quote. Final pricing depends on event flow, venue logistics, and deliverables. Travel/parking may apply outside the Phoenix metro. Arizona sales tax (8.3%) added where applicable.";
 
 const PRICING = {
   single: {
@@ -79,17 +82,26 @@ export default function Page() {
   const [addMakeup, setAddMakeup] = useState(false);
   const [addLightRetouch, setAddLightRetouch] = useState(false);
 
+  // Lead capture
+  const [leadFirstName, setLeadFirstName] = useState("");
+  const [leadEmail, setLeadEmail] = useState("");
+  const [leadIntent, setLeadIntent] = useState<LeadIntent>("budgeting");
+  const [leadPhone, setLeadPhone] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sentOk, setSentOk] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+
+  const emailOk = useMemo(() => leadEmail.trim().includes("@"), [leadEmail]);
+
   // Derived: total hours
   const totalHours = useMemo(() => {
     const d = clamp(days, 1, 5);
     const hpd = clamp(hoursPerDay, 1, 8);
-    return isMultiDay ? d * hpd : clamp(hoursPerDay, 1, 8);
+    return isMultiDay ? d * hpd : hpd;
   }, [isMultiDay, days, hoursPerDay]);
 
   // Per-day hour logic for pricing tier
-  const perDayHours = useMemo(() => {
-    return clamp(hoursPerDay, 1, 8);
-  }, [hoursPerDay]);
+  const perDayHours = useMemo(() => clamp(hoursPerDay, 1, 8), [hoursPerDay]);
 
   const dayTier = useMemo(() => {
     const d = isMultiDay ? clamp(days, 1, 5) : 1;
@@ -100,10 +112,9 @@ export default function Page() {
 
   const isHalfDayPerDay = perDayHours <= 4;
   const perDayLabel = isHalfDayPerDay ? "Half-Day (up to 4 hours)" : "Full-Day (up to 8 hours)";
+
   const perDayBaseRate = useMemo(() => {
-    if (!isMultiDay) {
-      return isHalfDayPerDay ? PRICING.single.halfDay : PRICING.single.fullDay;
-    }
+    if (!isMultiDay) return isHalfDayPerDay ? PRICING.single.halfDay : PRICING.single.fullDay;
     const tier = PRICING.multi[dayTier];
     return isHalfDayPerDay ? tier.halfDay : tier.fullDay;
   }, [isMultiDay, dayTier, isHalfDayPerDay]);
@@ -121,49 +132,42 @@ export default function Page() {
 
   const paceMeta = PACE[pace];
 
-  // Station recommendation
+  // Station recommendation (conservative to avoid overpromising)
   const recommendedStations = useMemo(() => {
     const hours = totalHours;
-    const conservativeThroughput = paceMeta.conservative; // per hour per station
-    const capacityPerStation = hours * conservativeThroughput;
+    const capacityPerStation = hours * paceMeta.conservative;
     const needed = Math.ceil(computedExpectedHeadshots / Math.max(1, capacityPerStation));
 
     if (needed <= 1) return 1;
     if (needed === 2) return 2;
-    return 3; // 3+ signals custom
+    return 3; // 3+ signals multi-station team
   }, [totalHours, paceMeta, computedExpectedHeadshots]);
 
   const stations = useMemo(() => {
     if (!autoStations) return stationsOverride;
+    // If 3+ recommended, keep UI in 2-station mode but show the "3+" banner
     return recommendedStations >= 3 ? 2 : (recommendedStations as 1 | 2);
   }, [autoStations, stationsOverride, recommendedStations]);
 
   // Capacity estimate range (display) based on pace range * total hours * stations
   const capacityRange = useMemo(() => {
     const [low, high] = paceMeta.displayRange;
-    const lowCap = Math.floor(totalHours * low * stations);
-    const highCap = Math.floor(totalHours * high * stations);
-    return { low: lowCap, high: highCap };
+    return {
+      low: Math.floor(totalHours * low * stations),
+      high: Math.floor(totalHours * high * stations)
+    };
   }, [paceMeta, totalHours, stations]);
 
   // Pricing calculation (package-based)
   const totalDays = useMemo(() => (isMultiDay ? clamp(days, 1, 5) : 1), [isMultiDay, days]);
 
   const pricing = useMemo(() => {
-    // If per-day hours > 8 (not allowed) or total > 40 hours (5 days * 8), we’d custom quote.
-    if (totalDays > 5 || perDayHours > 8) {
-      return { isCustom: true, total: 0, low: 0, high: 0 };
-    }
+    if (totalDays > 5 || perDayHours > 8) return { isCustom: true, total: 0, low: 0, high: 0 };
 
-    // Price is based on per-day package tier (half/full) * number of days,
-    // plus add-ons per day (and per station where appropriate).
     const base = perDayBaseRate * totalDays;
-
-    const stationAdd = (stations === 2 ? perDaySecondStation * totalDays : 0);
-
-    const lightRetouchAdd = addLightRetouch ? (perDayLightRetouch * stations * totalDays) : 0;
-
-    const makeupAdd = addMakeup ? (perDayMakeup * totalDays) : 0;
+    const stationAdd = stations === 2 ? perDaySecondStation * totalDays : 0;
+    const lightRetouchAdd = addLightRetouch ? perDayLightRetouch * stations * totalDays : 0;
+    const makeupAdd = addMakeup ? perDayMakeup * totalDays : 0;
 
     const exactTotal = base + stationAdd + lightRetouchAdd + makeupAdd;
 
@@ -184,7 +188,82 @@ export default function Page() {
     perDayMakeup
   ]);
 
-  const showCustomBanner = recommendedStations >= 3 || (isMultiDay && totalDays >= 3 && computedExpectedHeadshots > capacityRange.high);
+  const showCustomBanner =
+    recommendedStations >= 3 || (isMultiDay && totalDays >= 3 && computedExpectedHeadshots > capacityRange.high);
+
+  // Demand confidence indicator
+  const demandStatus = useMemo(() => {
+    if (computedExpectedHeadshots <= capacityRange.low) return "good" as const;
+    if (computedExpectedHeadshots > capacityRange.high) return "tight" as const;
+    return "close" as const;
+  }, [computedExpectedHeadshots, capacityRange.low, capacityRange.high]);
+
+  const hoursLabel = useMemo(() => {
+    if (!isMultiDay) return `${roundToHalf(perDayHours)} hours`;
+    const d = clamp(days, 1, 5);
+    const hpd = roundToHalf(perDayHours);
+    const total = roundToHalf(d * hpd);
+    return `${d} day${d === 1 ? "" : "s"} × ${hpd} hours/day (${total} total hours)`;
+  }, [isMultiDay, perDayHours, days]);
+
+  const expectedHeadshotsLabel = useMemo(() => {
+    if (volumeInputMode === "HEADSHOTS") return `${computedExpectedHeadshots} expected headshots`;
+    const a = clamp(attendees, 1, 200000);
+    const p = clamp(participationRate, 1, 90);
+    return `${a} attendees @ ${p}% ≈ ${computedExpectedHeadshots} headshots`;
+  }, [volumeInputMode, computedExpectedHeadshots, attendees, participationRate]);
+
+  const paceLabel = useMemo(() => {
+    const [low, high] = paceMeta.displayRange;
+    return `${paceMeta.label} (${low}–${high}/hr/station)`;
+  }, [paceMeta]);
+
+  async function sendEstimateEmail() {
+    setSending(true);
+    setSentOk(false);
+    setSendError(null);
+
+    try {
+      const email = leadEmail.trim();
+      if (!email.includes("@")) throw new Error("Please enter a valid email address.");
+
+      if (pricing.isCustom) throw new Error("Please request a custom quote for this configuration.");
+
+      const payload = {
+        quoteType: "booth" as const,
+        email,
+        firstName: leadFirstName.trim() || undefined,
+        phone: leadIntent === "ready_for_call" ? leadPhone.trim() || undefined : undefined,
+        intent: leadIntent,
+
+        estimateLow: pricing.low,
+        estimateHigh: pricing.high,
+
+        hoursLabel,
+        expectedHeadshotsLabel,
+        paceLabel,
+        recommendedStations,
+        capacityLow: capacityRange.low,
+        capacityHigh: capacityRange.high,
+        disclaimerText: DISCLAIMER_TEXT
+      };
+
+      const res = await fetch("/api/estimate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const out = await res.json();
+      if (!res.ok) throw new Error(out?.error || "Failed to send estimate");
+
+      setSentOk(true);
+    } catch (e: any) {
+      setSendError(e?.message || "Failed to send estimate");
+    } finally {
+      setSending(false);
+    }
+  }
 
   return (
     <main className="min-h-screen bg-white">
@@ -194,7 +273,7 @@ export default function Page() {
             Conference Headshot Booth Cost Calculator
           </h1>
           <p className="text-slate-600 text-base sm:text-lg">
-            Estimate budget, recommended stations, and participant capacity for your event — without line-item confusion.
+            Estimate a realistic budget range, recommended stations, and participant capacity for your event — without line-item confusion.
           </p>
         </header>
 
@@ -224,6 +303,10 @@ export default function Page() {
                 Pricing tier: <span className="font-medium text-slate-900">{perDayLabel}</span>
               </div>
             </div>
+
+            <p className="mt-3 text-sm text-slate-600">
+              Pricing is based on time on-site. Volume estimates help determine the recommended number of stations.
+            </p>
           </div>
 
           <div className="grid gap-6 p-4 sm:p-6 lg:grid-cols-2">
@@ -375,7 +458,7 @@ export default function Page() {
                         />
                       </div>
                       <div>
-                        <label className="text-sm font-medium text-slate-700">Participation rate</label>
+                        <label className="text-sm font-medium text-slate-700">Estimated participation</label>
                         <input
                           type="number"
                           min={1}
@@ -384,7 +467,7 @@ export default function Page() {
                           onChange={(e) => setParticipationRate(clamp(parseInt(e.target.value || "25", 10), 1, 90))}
                           className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
                         />
-                        <p className="mt-1 text-xs text-slate-500">Typical range is 15–40%</p>
+                        <p className="mt-1 text-xs text-slate-500">Typical range is 10–30%</p>
                       </div>
                     </>
                   )}
@@ -420,9 +503,7 @@ export default function Page() {
                   )}
                 </div>
 
-                <p className="mt-2 text-xs text-slate-500">
-                  Station recommendation is conservative to avoid overpromising throughput.
-                </p>
+                <p className="mt-2 text-xs text-slate-500">Station recommendation is conservative to avoid overpromising throughput.</p>
               </div>
 
               <div className="rounded-xl border border-slate-200 p-4">
@@ -463,6 +544,132 @@ export default function Page() {
 
             {/* Right: Outputs */}
             <div className="space-y-6">
+              {/* Estimated Investment FIRST */}
+              <div className="rounded-xl border border-slate-200 p-4">
+                <h2 className="text-base font-semibold text-slate-900">Estimated budget range</h2>
+
+                {pricing.isCustom ? (
+                  <div className="mt-3 text-sm text-slate-700">Please request a custom quote for this configuration.</div>
+                ) : (
+                  <>
+                    <div className="mt-3">
+                      <div className="text-3xl font-semibold tracking-tight text-slate-900">
+                        {formatMoney(pricing.low)} – {formatMoney(pricing.high)}
+                      </div>
+                      <div className="mt-1 text-sm text-slate-600">
+                        Planning-range estimate based on your inputs. Final quote confirmed after reviewing event flow and venue logistics.
+                      </div>
+                    </div>
+
+                    {/* Lead capture */}
+                    <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+                      <div className="text-sm font-semibold text-slate-900">Send My Conference Headshot Estimate</div>
+
+                      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <input
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
+                          placeholder="First name (optional)"
+                          value={leadFirstName}
+                          onChange={(e) => setLeadFirstName(e.target.value)}
+                        />
+                        <input
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
+                          placeholder="Email (required)"
+                          value={leadEmail}
+                          onChange={(e) => setLeadEmail(e.target.value)}
+                          inputMode="email"
+                        />
+                      </div>
+
+                      {!emailOk && leadEmail.trim().length > 0 && (
+                        <div className="mt-2 text-xs text-red-700">Please enter a valid email address.</div>
+                      )}
+
+                      <div className="mt-3 flex flex-col gap-2 text-sm text-slate-700">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="intent"
+                            checked={leadIntent === "budgeting"}
+                            onChange={() => setLeadIntent("budgeting")}
+                          />
+                          I’m budgeting / gathering quotes
+                        </label>
+
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="intent"
+                            checked={leadIntent === "ready_for_call"}
+                            onChange={() => setLeadIntent("ready_for_call")}
+                          />
+                          I’m ready for a quick planning call
+                        </label>
+                      </div>
+
+                      {leadIntent === "ready_for_call" && (
+                        <div className="mt-3">
+                          <input
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
+                            placeholder="Phone (optional)"
+                            value={leadPhone}
+                            onChange={(e) => setLeadPhone(e.target.value)}
+                            inputMode="tel"
+                          />
+                        </div>
+                      )}
+
+                      <button
+                        className="mt-4 w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                        disabled={sending || !emailOk || pricing.isCustom}
+                        onClick={sendEstimateEmail}
+                      >
+                        {sending ? "Sending…" : "Send My Conference Headshot Estimate"}
+                      </button>
+
+                      {sentOk && (
+                        <div className="mt-3 text-sm text-green-700">
+                          Estimate sent — check your inbox. You can forward it to your team.
+                        </div>
+                      )}
+                      {sendError && <div className="mt-3 text-sm text-red-700">{sendError}</div>}
+
+                      <div className="mt-2 text-xs text-slate-500">We’ll email your estimate so you can share it internally.</div>
+                    </div>
+
+                    <div className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
+                      <div className="font-medium text-slate-900">Includes</div>
+                      <ul className="mt-2 list-disc space-y-1 pl-5">
+                        <li>On-site headshot booth setup (backdrop + lighting)</li>
+                        <li>Professional headshot specialist &amp; guided posing</li>
+                        <li>Lead capture + participant list (CSV)</li>
+                        <li>Instant delivery via individual galleries</li>
+                      </ul>
+
+                      <div className="mt-3 text-xs text-slate-500">{DISCLAIMER_TEXT}</div>
+                    </div>
+                  </>
+                )}
+
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                  <a
+                    href={QUOTE_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800"
+                  >
+                    Request a Quote
+                  </a>
+                  <button
+                    onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                    className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                  >
+                    Adjust Inputs
+                  </button>
+                </div>
+              </div>
+
+              {/* Recommended setup SECOND */}
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <h2 className="text-base font-semibold text-slate-900">Recommended setup</h2>
 
@@ -485,6 +692,22 @@ export default function Page() {
                   <Stat label="Estimated headshots" value={`${computedExpectedHeadshots}`} />
                 </div>
 
+                {demandStatus === "good" && (
+                  <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
+                    ✅ Your estimated capacity comfortably covers expected demand.
+                  </div>
+                )}
+                {demandStatus === "close" && (
+                  <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
+                    ✅ Capacity looks solid — we’ll confirm event flow details on the quote call.
+                  </div>
+                )}
+                {demandStatus === "tight" && (
+                  <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
+                    ⚠ Capacity may be tight for your goal — consider an additional station or longer coverage.
+                  </div>
+                )}
+
                 {showCustomBanner && (
                   <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
                     If your event has complex logistics, 3+ stations, or unique deliverables, we’ll confirm a custom quote after a quick planning call.
@@ -492,60 +715,7 @@ export default function Page() {
                 )}
               </div>
 
-              <div className="rounded-xl border border-slate-200 p-4">
-                <h2 className="text-base font-semibold text-slate-900">Estimated investment</h2>
-
-                {pricing.isCustom ? (
-                  <div className="mt-3 text-sm text-slate-700">
-                    Please request a custom quote for this configuration.
-                  </div>
-                ) : (
-                  <>
-                    <div className="mt-3 flex items-end justify-between gap-4">
-                      <div>
-                        <div className="text-3xl font-semibold tracking-tight text-slate-900">
-                          {formatMoney(pricing.low)} – {formatMoney(pricing.high)}
-                        </div>
-                        <div className="mt-1 text-sm text-slate-600">
-                          Estimate based on your inputs. Final quote confirmed after reviewing event flow and venue logistics.
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
-                      <div className="font-medium text-slate-900">Includes</div>
-                      <ul className="mt-2 list-disc space-y-1 pl-5">
-                        <li>On-site headshot booth setup (backdrop + lighting)</li>
-                        <li>Professional headshot specialist & guided posing</li>
-                        <li>Lead capture + participant list (CSV)</li>
-                        <li>Instant delivery via individual galleries</li>
-                      </ul>
-
-                      <div className="mt-3 text-xs text-slate-500">
-                        Travel/parking may apply outside the Phoenix metro. Arizona sales tax (8.3%) added where applicable.
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                  <a
-                    href="https://headshotprosaz.com/company-headshots-phoenix/#quote"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800"
-                  >
-                    Request a Quote
-                  </a>
-                  <button
-                    onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-                    className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-                  >
-                    Adjust Inputs
-                  </button>
-                </div>
-              </div>
-
+              {/* Notes THIRD */}
               <div className="rounded-xl border border-slate-200 p-4 text-sm text-slate-600">
                 <div className="font-medium text-slate-900">Notes</div>
                 <ul className="mt-2 list-disc space-y-1 pl-5">
