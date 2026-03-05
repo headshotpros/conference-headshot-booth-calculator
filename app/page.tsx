@@ -2,8 +2,9 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
+type BoothType = "CONVENTION" | "COMPANY";
 type Mode = "TIME" | "VOLUME";
-type Pace = "HIGH" | "BALANCED" | "PREMIUM";
+type Pace = "HIGH" | "STANDARD" | "PREFERRED";
 type VolumeInputMode = "HEADSHOTS" | "ATTENDEES";
 type LeadIntent = "budgeting" | "ready_for_call";
 
@@ -23,45 +24,78 @@ function formatHoursToDaysHours(totalHours: number) {
   const half = remainder - whole >= 0.5 ? 0.5 : 0;
   const minutes = half === 0.5 ? 30 : 0;
 
-  if (days <= 0) {
-    return minutes ? `${whole}h 30m` : `${whole}h`;
-  }
+  if (days <= 0) return minutes ? `${whole}h 30m` : `${whole}h`;
   const parts: string[] = [`${days}d`];
   if (whole) parts.push(`${whole}h`);
   if (minutes) parts.push(`${minutes}m`);
   return parts.join(" ");
 }
 
-// This is what your public "Request a Quote" button should go to from the calculator UI
+// Public quote link button from this calculator
 const QUOTE_URL = "https://headshotprosaz.com/professional-headshot-booth-phoenix/#quote";
 
 const DISCLAIMER_TEXT =
   "Travel may apply outside the Phoenix metro area. Venue parking fees or accommodations may apply depending on the location and event schedule. Arizona sales tax (8.3%) added where applicable.";
 
-const PRICING = {
-  single: {
-    halfDay: 2500,
-    fullDay: 4000
-  },
-  multi: {
-    day1: { halfDay: 2500, fullDay: 4000 },
-    days2to3: { halfDay: 2350, fullDay: 3750 },
-    days4plus: { halfDay: 2200, fullDay: 3500 }
-  },
-  addOns: {
-    secondStation: { halfDay: 1500, fullDay: 2500 }, // per day
-    lightRetouchPerStation: { halfDay: 500, fullDay: 1000 }, // per day, per station
-    makeupArtist: { halfDay: 600, fullDay: 900 } // per day, per artist
-  }
+/**
+ * Base pricing ranges (per day, 1 station)
+ * Half day (≤4 hours): $2,250–$2,700 (typical $2,500)
+ * Full day (>4 up to 8): $3,500–$4,000 (typical $3,750)
+ */
+const BASE_PRICING = {
+  halfDay: { low: 2250, mid: 2500, high: 2700 },
+  fullDay: { low: 3500, mid: 3750, high: 4000 }
 };
 
+// Multi-day commitment discounts (industry typical)
+function multiDayDiscount(days: number) {
+  if (days >= 4) return 0.1; // 10% off per day
+  if (days >= 2) return 0.06; // 6% off per day
+  return 0;
+}
+
+// Add-ons (applied equally to low/mid/high to keep tool simple + non-line-item-y)
+const ADDONS = {
+  secondStation: { halfDay: 1500, fullDay: 2500 }, // per day (adds a 2nd photographer station)
+  enhancedRetouchPerStation: { halfDay: 500, fullDay: 1000 }, // per day, per station
+  makeupArtist: { halfDay: 600, fullDay: 900 } // per day, per makeup artist
+};
+
+// Pace = minutes/person + people/hour (range)
 const PACE = {
-  HIGH: { label: "High Volume", displayRange: [25, 35], conservative: 25 },
-  BALANCED: { label: "Balanced", displayRange: [18, 25], conservative: 18 },
-  PREMIUM: { label: "Premium Experience", displayRange: [12, 15], conservative: 12 }
-} satisfies Record<Pace, { label: string; displayRange: [number, number]; conservative: number }>;
+  HIGH: {
+    label: "High Volume Booth",
+    minutesRange: [2, 3] as [number, number],
+    perHourRange: [20, 30] as [number, number],
+    conservativePerHour: 20
+  },
+  STANDARD: {
+    label: "Standard Experience",
+    minutesRange: [4, 5] as [number, number],
+    perHourRange: [12, 15] as [number, number],
+    conservativePerHour: 12
+  },
+  PREFERRED: {
+    label: "Preferred / Premium Experience",
+    minutesRange: [7, 10] as [number, number],
+    perHourRange: [6, 9] as [number, number],
+    conservativePerHour: 6
+  }
+} satisfies Record<
+  Pace,
+  {
+    label: string;
+    minutesRange: [number, number];
+    perHourRange: [number, number];
+    conservativePerHour: number;
+  }
+>;
 
 export default function Page() {
+  // Step 1: event type
+  const [boothType, setBoothType] = useState<BoothType>("CONVENTION");
+
+  // Top toggle now matters: do they know time or volume first?
   const [mode, setMode] = useState<Mode>("TIME");
 
   // Time inputs
@@ -69,38 +103,69 @@ export default function Page() {
   const [days, setDays] = useState(1);
   const [hoursPerDay, setHoursPerDay] = useState(4);
 
-  // Demand toggle (prevents scary defaults)
-  const [useDemandEstimate, setUseDemandEstimate] = useState(false);
-
-  // Volume inputs (only used when useDemandEstimate === true)
-  const [volumeInputMode, setVolumeInputMode] = useState<VolumeInputMode>("HEADSHOTS");
-  const [expectedHeadshots, setExpectedHeadshots] = useState(150);
+  // Participation / volume inputs
+  const [volumeInputMode, setVolumeInputMode] = useState<VolumeInputMode>("ATTENDEES");
+  const [expectedHeadshots, setExpectedHeadshots] = useState(80);
   const [attendees, setAttendees] = useState(600);
   const [participationRate, setParticipationRate] = useState(25); // %
 
-  // Shared inputs
+  // Let them turn demand on/off so defaults don't scare them
+  const [useParticipationEstimate, setUseParticipationEstimate] = useState(true);
+
+  // Pace
   const [pace, setPace] = useState<Pace>("HIGH");
+
+  // Photographer stations
   const [autoStations, setAutoStations] = useState(true);
   const [stationsOverride, setStationsOverride] = useState<1 | 2>(1);
 
   // Options
   const [addMakeup, setAddMakeup] = useState(false);
-  const [makeupArtists, setMakeupArtists] = useState<1 | 2>(1); // scales with stations
-  const [addLightRetouch, setAddLightRetouch] = useState(false);
+  const [makeupArtists, setMakeupArtists] = useState<1 | 2>(1);
+
+  // Light retouching is included (per your workflow).
+  // Optional upgrade: "Enhanced retouching"
+  const [addEnhancedRetouch, setAddEnhancedRetouch] = useState(false);
 
   // Lead capture
+  const [showEmailForm, setShowEmailForm] = useState(false);
   const [leadFirstName, setLeadFirstName] = useState("");
   const [leadEmail, setLeadEmail] = useState("");
   const [leadIntent, setLeadIntent] = useState<LeadIntent>("budgeting");
   const [leadPhone, setLeadPhone] = useState("");
+  const [optInWorksheet, setOptInWorksheet] = useState(true);
 
-  // Email UI tweak (opens + scrolls to form)
-  const [showEmailForm, setShowEmailForm] = useState(false);
   const emailInputRef = useRef<HTMLInputElement | null>(null);
 
   const [sending, setSending] = useState(false);
   const [sentOk, setSentOk] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+
+  // When booth type changes, set sensible defaults for that audience.
+  useEffect(() => {
+    // Convention: most people know the time window first.
+    // Company conference: most people know how many employees need headshots.
+    if (boothType === "CONVENTION") {
+      setMode("TIME");
+      setPace("HIGH");
+      setUseParticipationEstimate(true);
+      setVolumeInputMode("ATTENDEES");
+      setParticipationRate((p) => (p ? p : 25));
+    } else {
+      setMode("VOLUME");
+      setPace("STANDARD");
+      // Many internal planners don’t know demand yet; default on but with smaller default.
+      setUseParticipationEstimate(true);
+      setVolumeInputMode("HEADSHOTS");
+      setExpectedHeadshots(40);
+      setAttendees(200);
+      setParticipationRate(20);
+    }
+    // Reset email UI state when switching type
+    setShowEmailForm(false);
+    setSentOk(false);
+    setSendError(null);
+  }, [boothType]);
 
   // Derived: total hours
   const totalHours = useMemo(() => {
@@ -109,129 +174,127 @@ export default function Page() {
     return isMultiDay ? d * hpd : clamp(hoursPerDay, 1, 8);
   }, [isMultiDay, days, hoursPerDay]);
 
-  // Per-day hour logic for pricing tier
+  const totalDays = useMemo(() => (isMultiDay ? clamp(days, 1, 5) : 1), [isMultiDay, days]);
   const perDayHours = useMemo(() => clamp(hoursPerDay, 1, 8), [hoursPerDay]);
-
-  const dayTier = useMemo(() => {
-    const d = isMultiDay ? clamp(days, 1, 5) : 1;
-    if (d === 1) return "day1" as const;
-    if (d <= 3) return "days2to3" as const;
-    return "days4plus" as const;
-  }, [isMultiDay, days]);
-
   const isHalfDayPerDay = perDayHours <= 4;
-  const perDayLabel = isHalfDayPerDay ? "Half-Day (up to 4 hours)" : "Full-Day (up to 8 hours)";
-
-  const perDayBaseRate = useMemo(() => {
-    if (!isMultiDay) return isHalfDayPerDay ? PRICING.single.halfDay : PRICING.single.fullDay;
-    const tier = PRICING.multi[dayTier];
-    return isHalfDayPerDay ? tier.halfDay : tier.fullDay;
-  }, [isMultiDay, dayTier, isHalfDayPerDay]);
-
-  const perDaySecondStation = isHalfDayPerDay ? PRICING.addOns.secondStation.halfDay : PRICING.addOns.secondStation.fullDay;
-  const perDayLightRetouch = isHalfDayPerDay
-    ? PRICING.addOns.lightRetouchPerStation.halfDay
-    : PRICING.addOns.lightRetouchPerStation.fullDay;
-  const perDayMakeup = isHalfDayPerDay ? PRICING.addOns.makeupArtist.halfDay : PRICING.addOns.makeupArtist.fullDay;
+  const perDayLabel = isHalfDayPerDay ? "Half-Day (up to 4 hours/day)" : "Full-Day (up to 8 hours/day)";
 
   const paceMeta = PACE[pace];
 
-  // Expected headshots (nullable when demand estimate is off)
   const computedExpectedHeadshots = useMemo(() => {
-    if (!useDemandEstimate) return null;
+    if (!useParticipationEstimate) return null;
 
     if (volumeInputMode === "HEADSHOTS") return clamp(expectedHeadshots, 1, 50000);
     const a = clamp(attendees, 1, 200000);
     const p = clamp(participationRate, 1, 90) / 100;
     return Math.max(1, Math.round(a * p));
-  }, [useDemandEstimate, volumeInputMode, expectedHeadshots, attendees, participationRate]);
+  }, [useParticipationEstimate, volumeInputMode, expectedHeadshots, attendees, participationRate]);
 
-  // Station recommendation (only meaningful when demand is provided)
+  // Recommended photographer stations (conservative, based on demand vs conservative capacity)
   const recommendedStations = useMemo(() => {
-    if (!useDemandEstimate || computedExpectedHeadshots == null) return 1;
+    if (!useParticipationEstimate || computedExpectedHeadshots == null) return 1;
 
-    const hours = totalHours;
-    const capacityPerStation = hours * paceMeta.conservative;
+    const capacityPerStation = totalHours * paceMeta.conservativePerHour;
     const needed = Math.ceil(computedExpectedHeadshots / Math.max(1, capacityPerStation));
 
     if (needed <= 1) return 1;
     if (needed === 2) return 2;
     return 3; // 3+ signals multi-station team
-  }, [useDemandEstimate, computedExpectedHeadshots, totalHours, paceMeta]);
+  }, [useParticipationEstimate, computedExpectedHeadshots, totalHours, paceMeta]);
 
   const stations = useMemo(() => {
     if (!autoStations) return stationsOverride;
-    // If 3+ recommended, keep UI in 2-station mode but show the "3+" banner
     return recommendedStations >= 3 ? 2 : (recommendedStations as 1 | 2);
   }, [autoStations, stationsOverride, recommendedStations]);
 
-  // Makeup artists max = stations (so you can match 1:1 if you want)
+  // Makeup artists max = photographer stations (optional)
   const makeupArtistsMax = useMemo(() => (stations === 2 ? 2 : 1), [stations]);
-
   useEffect(() => {
-    if (makeupArtists > makeupArtistsMax) {
-      setMakeupArtists(makeupArtistsMax as 1 | 2);
-    }
+    if (makeupArtists > makeupArtistsMax) setMakeupArtists(makeupArtistsMax as 1 | 2);
   }, [makeupArtists, makeupArtistsMax]);
 
   // Capacity estimate range (display) based on pace range * total hours * stations
   const capacityRange = useMemo(() => {
-    const [low, high] = paceMeta.displayRange;
+    const [low, high] = paceMeta.perHourRange;
     return {
       low: Math.floor(totalHours * low * stations),
       high: Math.floor(totalHours * high * stations)
     };
   }, [paceMeta, totalHours, stations]);
 
-  // Pricing calculation (package-based)
-  const totalDays = useMemo(() => (isMultiDay ? clamp(days, 1, 5) : 1), [isMultiDay, days]);
-
+  // Pricing: base range + add-ons + multiday discount
   const pricing = useMemo(() => {
-    if (totalDays > 5 || perDayHours > 8) return { isCustom: true, total: 0, low: 0, high: 0 };
+    if (totalDays > 5 || perDayHours > 8) return { isCustom: true, low: 0, mid: 0, high: 0 };
 
-    const base = perDayBaseRate * totalDays;
-    const stationAdd = stations === 2 ? perDaySecondStation * totalDays : 0;
-    const lightRetouchAdd = addLightRetouch ? perDayLightRetouch * stations * totalDays : 0;
+    const base = isHalfDayPerDay ? BASE_PRICING.halfDay : BASE_PRICING.fullDay;
 
-    // Makeup scales with makeup artist count (1 or 2)
-    const makeupCount = addMakeup ? makeupArtists : 0;
-    const makeupAdd = addMakeup ? perDayMakeup * makeupCount * totalDays : 0;
+    const discount = multiDayDiscount(totalDays);
+    const mult = 1 - discount;
 
-    const exactTotal = base + stationAdd + lightRetouchAdd + makeupAdd;
+    // Base per day (discounted for multi-day)
+    const baseLowPerDay = Math.round(base.low * mult);
+    const baseMidPerDay = Math.round(base.mid * mult);
+    const baseHighPerDay = Math.round(base.high * mult);
 
-    // Planning range: -8% to +10%
-    const low = Math.round(exactTotal * 0.92);
-    const high = Math.round(exactTotal * 1.1);
+    // Add-ons per day
+    const secondStationPerDay = isHalfDayPerDay ? ADDONS.secondStation.halfDay : ADDONS.secondStation.fullDay;
+    const enhancedRetouchPerStationPerDay = isHalfDayPerDay
+      ? ADDONS.enhancedRetouchPerStation.halfDay
+      : ADDONS.enhancedRetouchPerStation.fullDay;
+    const makeupPerArtistPerDay = isHalfDayPerDay ? ADDONS.makeupArtist.halfDay : ADDONS.makeupArtist.fullDay;
 
-    return { isCustom: false, total: exactTotal, low, high };
-  }, [
-    totalDays,
-    perDayHours,
-    perDayBaseRate,
-    stations,
-    addLightRetouch,
-    addMakeup,
-    makeupArtists,
-    perDaySecondStation,
-    perDayLightRetouch,
-    perDayMakeup
-  ]);
+    const addStation = stations === 2 ? secondStationPerDay : 0;
 
-  // Demand confidence indicator (only if demand estimate is on)
-  const demandStatus = useMemo(() => {
-    if (!useDemandEstimate || computedExpectedHeadshots == null) return null;
-    if (computedExpectedHeadshots <= capacityRange.low) return "good" as const;
-    if (computedExpectedHeadshots > capacityRange.high) return "tight" as const;
-    return "close" as const;
-  }, [useDemandEstimate, computedExpectedHeadshots, capacityRange.low, capacityRange.high]);
+    // Enhanced retouch is per station per day
+    const addEnhanced = addEnhancedRetouch ? enhancedRetouchPerStationPerDay * stations : 0;
 
-  const showCustomBanner =
-    recommendedStations >= 3 ||
-    (useDemandEstimate &&
-      computedExpectedHeadshots != null &&
-      isMultiDay &&
-      totalDays >= 3 &&
-      computedExpectedHeadshots > capacityRange.high);
+    // Makeup is per artist per day (and you can match to stations)
+    const addMakeupCost = addMakeup ? makeupPerArtistPerDay * makeupArtists : 0;
+
+    // Total for all days
+    const low = (baseLowPerDay + addStation + addEnhanced + addMakeupCost) * totalDays;
+    const mid = (baseMidPerDay + addStation + addEnhanced + addMakeupCost) * totalDays;
+    const high = (baseHighPerDay + addStation + addEnhanced + addMakeupCost) * totalDays;
+
+    return { isCustom: false, low, mid, high, discount };
+  }, [totalDays, perDayHours, isHalfDayPerDay, stations, addEnhancedRetouch, addMakeup, makeupArtists]);
+
+  // Wait time estimate (aka line risk) – simple + honest
+  const waitTimeStatus = useMemo(() => {
+    if (!useParticipationEstimate || computedExpectedHeadshots == null) return null;
+
+    const demand = computedExpectedHeadshots;
+    const lowCap = capacityRange.low;
+    const highCap = capacityRange.high;
+
+    // Green if demand <= 85% of low capacity
+    if (demand <= Math.floor(lowCap * 0.85)) return "green" as const;
+    // Red if demand exceeds high capacity
+    if (demand > highCap) return "red" as const;
+    // Otherwise yellow
+    return "yellow" as const;
+  }, [useParticipationEstimate, computedExpectedHeadshots, capacityRange.low, capacityRange.high]);
+
+  const waitTimeCopy = useMemo(() => {
+    if (!waitTimeStatus) return { title: "Not enough info yet", detail: "Add an estimated participation number to see a wait time estimate." };
+
+    if (waitTimeStatus === "green") {
+      return { title: "Smooth flow", detail: "Most people should move through quickly with a comfortable buffer." };
+    }
+    if (waitTimeStatus === "yellow") {
+      return { title: "Busy periods likely", detail: "Short lines may form during peak times (breaks, lunch, after sessions)." };
+    }
+    return { title: "Lines expected", detail: "Consider adding another photographer station or extending coverage to reduce wait times." };
+  }, [waitTimeStatus]);
+
+  const costPerHeadshot = useMemo(() => {
+    if (pricing.isCustom) return null;
+    if (!useParticipationEstimate || computedExpectedHeadshots == null || computedExpectedHeadshots <= 0) return null;
+
+    const low = Math.round(pricing.low / computedExpectedHeadshots);
+    const high = Math.round(pricing.high / computedExpectedHeadshots);
+    return { low, high };
+  }, [pricing, useParticipationEstimate, computedExpectedHeadshots]);
 
   const hoursLabel = useMemo(() => {
     if (!isMultiDay) return `${roundToHalf(perDayHours)} hours`;
@@ -241,15 +304,24 @@ export default function Page() {
   }, [isMultiDay, perDayHours, days]);
 
   const expectedHeadshotsLabel = useMemo(() => {
-    if (!useDemandEstimate || computedExpectedHeadshots == null) return "Not provided";
-    if (volumeInputMode === "HEADSHOTS") return `${computedExpectedHeadshots} expected headshots`;
+    if (!useParticipationEstimate || computedExpectedHeadshots == null) return "Not provided";
+    if (volumeInputMode === "HEADSHOTS") return `${computedExpectedHeadshots} people expected to get headshots`;
     return `${clamp(attendees, 1, 200000)} attendees @ ${clamp(participationRate, 1, 90)}% ≈ ${computedExpectedHeadshots} headshots`;
-  }, [useDemandEstimate, volumeInputMode, computedExpectedHeadshots, attendees, participationRate]);
+  }, [useParticipationEstimate, volumeInputMode, computedExpectedHeadshots, attendees, participationRate]);
 
   const paceLabel = useMemo(() => {
-    const r = paceMeta.displayRange;
-    return `${paceMeta.label} (${r[0]}–${r[1]}/hr/station)`;
+    const m = paceMeta.minutesRange;
+    const r = paceMeta.perHourRange;
+    return `${paceMeta.label} (${m[0]}–${m[1]} min/person, ~${r[0]}–${r[1]}/hr/station)`;
   }, [paceMeta]);
+
+  function openEmailFormAndFocus() {
+    setShowEmailForm(true);
+    setTimeout(() => {
+      emailInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      emailInputRef.current?.focus();
+    }, 50);
+  }
 
   async function sendEstimateEmail() {
     setSending(true);
@@ -270,10 +342,13 @@ export default function Page() {
         expectedHeadshotsLabel,
         paceLabel,
         recommendedStations: recommendedStations >= 3 ? 3 : recommendedStations,
-        recommendedStationCountUsed: stations,
         capacityLow: capacityRange.low,
         capacityHigh: capacityRange.high,
-        disclaimerText: DISCLAIMER_TEXT
+        disclaimerText: DISCLAIMER_TEXT,
+
+        // extra fields for future Mailercloud routing (server will safely ignore for now)
+        boothType,
+        optInWorksheet
       };
 
       const res = await fetch("/api/estimate", {
@@ -293,30 +368,75 @@ export default function Page() {
     }
   }
 
-  function openEmailFormAndFocus() {
-    setShowEmailForm(true);
-    // wait for UI to render
-    setTimeout(() => {
-      emailInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      emailInputRef.current?.focus();
-    }, 50);
-  }
+  const deliverables = useMemo(() => {
+    if (boothType === "CONVENTION") {
+      return [
+        "On-site headshot booth setup (backdrop + lighting)",
+        "High-volume headshot workflow & posing guidance",
+        "Instant delivery via individual gallery links",
+        "Optional lead capture + participant list export (CSV)"
+      ];
+    }
+    return [
+      "Mobile studio setup at your location (backdrop + lighting)",
+      "Posing & expression coaching for a consistent, professional look",
+      "Streamlined file naming by participant (with provided list)",
+      "Optional scheduling-friendly workflow to keep teams moving"
+    ];
+  }, [boothType]);
+
+  const title = boothType === "CONVENTION" ? "Conference Headshot Booth Cost Calculator" : "Company Conference Headshot Cost Calculator";
 
   return (
     <main className="min-h-screen bg-white">
       <div className="mx-auto max-w-5xl px-4 py-10">
         <header className="space-y-3">
-          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900">
-            Phoenix Conference Headshot Booth Cost Calculator &amp; Budget Planner
-          </h1>
+          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900">{title}</h1>
           <p className="text-slate-600 text-base sm:text-lg">
-            Estimate a realistic budget range, recommended stations, and participant capacity for your event — without line-item confusion.
+            Estimate a realistic budget range, recommended photographer stations, capacity, and wait time — using plain English (not photographer-speak).
           </p>
         </header>
+
+        {/* Step 1: Choose event type */}
+        <section className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 p-4 sm:p-6">
+            <h2 className="text-base font-semibold text-slate-900">Step 1: What type of event are you planning?</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              This changes the wording and workflow so the tool matches how planners actually think.
+            </p>
+          </div>
+
+          <div className="grid gap-3 p-4 sm:p-6 sm:grid-cols-2">
+            <button
+              onClick={() => setBoothType("CONVENTION")}
+              className={`rounded-2xl border p-4 text-left transition ${
+                boothType === "CONVENTION" ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              <div className="text-sm font-semibold text-slate-900">Convention / Expo Booth</div>
+              <div className="mt-1 text-sm text-slate-600">
+                Headshots for attendees or sponsors — high-volume flow where wait times matter.
+              </div>
+            </button>
+
+            <button
+              onClick={() => setBoothType("COMPANY")}
+              className={`rounded-2xl border p-4 text-left transition ${
+                boothType === "COMPANY" ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              <div className="text-sm font-semibold text-slate-900">Company Conference / Team Event</div>
+              <div className="mt-1 text-sm text-slate-600">
+                Headshots for employees — often scheduled or planned to photograph everyone efficiently.
+              </div>
+            </button>
+          </div>
+        </section>
 
         <section className="mt-8 rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 p-4 sm:p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              {/* Mode toggle: TIME vs VOLUME */}
               <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
                 <button
                   className={`rounded-lg px-4 py-2 text-sm font-medium ${
@@ -324,7 +444,7 @@ export default function Page() {
                   }`}
                   onClick={() => setMode("TIME")}
                 >
-                  I have a fixed time window
+                  I know my time window
                 </button>
                 <button
                   className={`rounded-lg px-4 py-2 text-sm font-medium ${
@@ -332,7 +452,7 @@ export default function Page() {
                   }`}
                   onClick={() => setMode("VOLUME")}
                 >
-                  I know how many people we expect
+                  I know how many people need headshots
                 </button>
               </div>
 
@@ -342,7 +462,7 @@ export default function Page() {
             </div>
 
             <p className="mt-3 text-sm text-slate-600">
-              Pricing is based on time on-site. Demand estimates help determine the recommended number of stations.
+              Pricing is based on time on-site. Participation estimates help recommend photographer stations and predict wait times.
             </p>
           </div>
 
@@ -352,7 +472,7 @@ export default function Page() {
               {/* Time */}
               <div className="rounded-xl border border-slate-200 p-4">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-base font-semibold text-slate-900">Time</h2>
+                  <h2 className="text-base font-semibold text-slate-900">Time on-site</h2>
                   <label className="inline-flex items-center gap-2 text-sm text-slate-600">
                     <input
                       type="checkbox"
@@ -379,6 +499,7 @@ export default function Page() {
                         />
                         <p className="mt-1 text-xs text-slate-500">1–5 days</p>
                       </div>
+
                       <div>
                         <label className="text-sm font-medium text-slate-700">Hours per day</label>
                         <input
@@ -406,7 +527,7 @@ export default function Page() {
                         className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
                       />
                       <p className="mt-1 text-xs text-slate-500">
-                        Pricing uses half-day (≤ 4h) or full-day (&gt; 4h up to 8h).
+                        Half-day pricing applies up to 4 hours. Full-day pricing applies over 4 hours (up to 8).
                       </p>
                     </div>
                   )}
@@ -414,18 +535,21 @@ export default function Page() {
 
                 <div className="mt-4 text-sm text-slate-600">
                   Total time: <span className="font-medium text-slate-900">{formatHoursToDaysHours(totalHours)}</span>
+                  {isMultiDay && totalDays >= 2 && (
+                    <span className="ml-2 text-xs text-slate-500">(multi-day commitment pricing applied)</span>
+                  )}
                 </div>
               </div>
 
               {/* Pace */}
               <div className="rounded-xl border border-slate-200 p-4">
-                <h2 className="text-base font-semibold text-slate-900">Pace</h2>
+                <h2 className="text-base font-semibold text-slate-900">Headshot experience speed</h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  Faster flow increases capacity. Premium pacing allows more coaching per person.
+                  Choose the experience you want. Faster flow increases capacity; slower pacing gives more coaching per person.
                 </p>
 
                 <div className="mt-4 grid gap-2">
-                  {(["HIGH", "BALANCED", "PREMIUM"] as Pace[]).map((p) => {
+                  {(["HIGH", "STANDARD", "PREFERRED"] as Pace[]).map((p) => {
                     const meta = PACE[p];
                     const isActive = pace === p;
                     return (
@@ -439,7 +563,7 @@ export default function Page() {
                         <div>
                           <div className="text-sm font-semibold text-slate-900">{meta.label}</div>
                           <div className="text-xs text-slate-600">
-                            Estimated pace: {meta.displayRange[0]}–{meta.displayRange[1]} headshots/hr per station
+                            {meta.minutesRange[0]}–{meta.minutesRange[1]} minutes per person • ~{meta.perHourRange[0]}–{meta.perHourRange[1]} per hour per station
                           </div>
                         </div>
                         <div className={`h-4 w-4 rounded-full border ${isActive ? "border-slate-900 bg-slate-900" : "border-slate-300"}`} />
@@ -449,13 +573,15 @@ export default function Page() {
                 </div>
               </div>
 
-              {/* Demand toggle (prevents scary default volume) */}
+              {/* Participation / demand */}
               <div className="rounded-xl border border-slate-200 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h2 className="text-base font-semibold text-slate-900">Demand estimate</h2>
+                    <h2 className="text-base font-semibold text-slate-900">
+                      {boothType === "CONVENTION" ? "Participation estimate" : "How many people need headshots?"}
+                    </h2>
                     <p className="mt-1 text-sm text-slate-600">
-                      Turn this on if you want station recommendations based on expected participation. Leave it off if you’re not sure yet.
+                      Turn this on if you want station recommendations and a wait time estimate. Leave it off if you’re not sure yet.
                     </p>
                   </div>
 
@@ -463,14 +589,14 @@ export default function Page() {
                     <input
                       type="checkbox"
                       className="h-4 w-4 rounded border-slate-300"
-                      checked={useDemandEstimate}
-                      onChange={(e) => setUseDemandEstimate(e.target.checked)}
+                      checked={useParticipationEstimate}
+                      onChange={(e) => setUseParticipationEstimate(e.target.checked)}
                     />
-                    Use demand estimate
+                    Use estimate
                   </label>
                 </div>
 
-                {useDemandEstimate ? (
+                {useParticipationEstimate ? (
                   <>
                     <div className="mt-4">
                       <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
@@ -482,7 +608,7 @@ export default function Page() {
                           }`}
                           onClick={() => setVolumeInputMode("HEADSHOTS")}
                         >
-                          Expected headshots
+                          People who want headshots
                         </button>
                         <button
                           className={`rounded-lg px-3 py-2 text-xs font-medium ${
@@ -500,7 +626,7 @@ export default function Page() {
                     <div className="mt-4 grid gap-4 sm:grid-cols-2">
                       {volumeInputMode === "HEADSHOTS" ? (
                         <div className="sm:col-span-2">
-                          <label className="text-sm font-medium text-slate-700">How many people do you want photographed?</label>
+                          <label className="text-sm font-medium text-slate-700">How many people do you expect will get headshots?</label>
                           <input
                             type="number"
                             min={1}
@@ -508,7 +634,9 @@ export default function Page() {
                             onChange={(e) => setExpectedHeadshots(clamp(parseInt(e.target.value || "1", 10), 1, 50000))}
                             className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
                           />
-                          <p className="mt-1 text-xs text-slate-500">We’ll recommend stations based on your time + pace.</p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            You can adjust this to see how staffing and wait times change.
+                          </p>
                         </div>
                       ) : (
                         <>
@@ -532,7 +660,7 @@ export default function Page() {
                               onChange={(e) => setParticipationRate(clamp(parseInt(e.target.value || "25", 10), 1, 90))}
                               className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
                             />
-                            <p className="mt-1 text-xs text-slate-500">Typical range is 10–30%</p>
+                            <p className="mt-1 text-xs text-slate-500">Typical range is 20–40%</p>
                           </div>
                         </>
                       )}
@@ -544,14 +672,16 @@ export default function Page() {
                   </>
                 ) : (
                   <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
-                    Demand estimate is off — station recommendations will default to 1 station until you turn it on.
+                    Estimate is off — station recommendation and wait time estimate will be limited until you add participation numbers.
                   </div>
                 )}
               </div>
 
-              {/* Stations */}
+              {/* Photographer stations */}
               <div className="rounded-xl border border-slate-200 p-4">
-                <h2 className="text-base font-semibold text-slate-900">Stations</h2>
+                <h2 className="text-base font-semibold text-slate-900">Photographer stations</h2>
+                <p className="mt-1 text-sm text-slate-600">A “station” is one photographer + one lighting setup.</p>
+
                 <div className="mt-3 flex items-center justify-between gap-3">
                   <label className="inline-flex items-center gap-2 text-sm text-slate-700">
                     <input
@@ -569,13 +699,13 @@ export default function Page() {
                       onChange={(e) => setStationsOverride(parseInt(e.target.value, 10) as 1 | 2)}
                       className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
                     >
-                      <option value={1}>1 station</option>
-                      <option value={2}>2 stations</option>
+                      <option value={1}>1 photographer station</option>
+                      <option value={2}>2 photographer stations</option>
                     </select>
                   )}
                 </div>
 
-                <p className="mt-2 text-xs text-slate-500">Station recommendation is conservative to avoid overpromising throughput.</p>
+                <p className="mt-2 text-xs text-slate-500">Recommendation is conservative to avoid overpromising throughput.</p>
               </div>
 
               {/* Options */}
@@ -609,7 +739,7 @@ export default function Page() {
                           {makeupArtistsMax === 2 && <option value={2}>2 makeup artists (one per station)</option>}
                         </select>
                         <p className="text-xs text-slate-500">
-                          Tip: If you have 2 headshot stations and want maximum flow, a second makeup artist can reduce bottlenecks.
+                          If you have 2 photographer stations and want maximum flow, a second makeup artist can reduce bottlenecks.
                         </p>
                       </div>
                     )}
@@ -619,18 +749,20 @@ export default function Page() {
                     <input
                       type="checkbox"
                       className="mt-1 h-4 w-4 rounded border-slate-300"
-                      checked={addLightRetouch}
-                      onChange={(e) => setAddLightRetouch(e.target.checked)}
+                      checked={addEnhancedRetouch}
+                      onChange={(e) => setAddEnhancedRetouch(e.target.checked)}
                     />
                     <span>
-                      <span className="font-medium text-slate-900">Light retouching (per station)</span>
-                      <span className="block text-xs text-slate-500">One finished image per person, per station (per day).</span>
+                      <span className="font-medium text-slate-900">Enhanced retouching (optional)</span>
+                      <span className="block text-xs text-slate-500">
+                        A step up from the included polish — cleaner, more refined final look for each participant.
+                      </span>
                     </span>
                   </label>
                 </div>
 
                 <div className="mt-3 text-xs text-slate-500">
-                  Enhanced retouching available: <span className="font-medium text-slate-900">$50/image</span> (optional; can be offered to individuals).
+                  Light retouching is included for the booth workflow. (More detailed edits can be discussed after reviewing your event needs.)
                 </div>
               </div>
             </div>
@@ -650,11 +782,17 @@ export default function Page() {
                         {formatMoney(pricing.low)} – {formatMoney(pricing.high)}
                       </div>
                       <div className="mt-1 text-sm text-slate-600">
-                        Planning-range estimate based on your inputs. Final quote confirmed after reviewing event flow and venue logistics.
+                        Use this tool to estimate your event budget. We’ll provide a personalized quote once we review your event details.
                       </div>
+
+                      {typeof (pricing as any).discount === "number" && (pricing as any).discount > 0 && (
+                        <div className="mt-2 text-xs text-slate-500">
+                          Multi-day commitment pricing applied ({Math.round((pricing as any).discount * 100)}% off per day).
+                        </div>
+                      )}
                     </div>
 
-                    {/* UI TWEAK CTA */}
+                    {/* Quick “Email me this” CTA */}
                     {!showEmailForm && (
                       <button
                         onClick={openEmailFormAndFocus}
@@ -664,10 +802,10 @@ export default function Page() {
                       </button>
                     )}
 
-                    {/* Lead capture */}
+                    {/* Email form */}
                     {showEmailForm && (
                       <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-                        <div className="text-sm font-semibold text-slate-900">Send My Conference Headshot Estimate</div>
+                        <div className="text-sm font-semibold text-slate-900">Send my estimate</div>
 
                         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                           <input
@@ -704,7 +842,7 @@ export default function Page() {
                               checked={leadIntent === "ready_for_call"}
                               onChange={() => setLeadIntent("ready_for_call")}
                             />
-                            I’m ready for a quick planning call
+                            I’d like a quick planning call
                           </label>
                         </div>
 
@@ -720,34 +858,47 @@ export default function Page() {
                           </div>
                         )}
 
+                        <label className="mt-3 flex items-start gap-3 text-sm text-slate-700">
+                          <input
+                            type="checkbox"
+                            className="mt-1 h-4 w-4 rounded border-slate-300"
+                            checked={optInWorksheet}
+                            onChange={(e) => setOptInWorksheet(e.target.checked)}
+                          />
+                          <span>
+                            <span className="font-medium text-slate-900">Also send me the planner worksheet + tips</span>
+                            <span className="block text-xs text-slate-500">
+                              Helpful planning resources for {boothType === "CONVENTION" ? "convention booths" : "company headshot events"}.
+                            </span>
+                          </span>
+                        </label>
+
                         <button
                           className="mt-4 w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
                           disabled={sending || !leadEmail.trim() || pricing.isCustom}
                           onClick={sendEstimateEmail}
                         >
-                          {sending ? "Sending…" : "Send My Conference Headshot Estimate"}
+                          {sending ? "Sending…" : "Send my estimate"}
                         </button>
 
                         {sentOk && (
                           <div className="mt-3 text-sm text-green-700">
-                            Estimate sent — check your inbox. You can forward it to your team.
+                            Sent! Check your inbox — you can forward it to your team.
                           </div>
                         )}
                         {sendError && <div className="mt-3 text-sm text-red-700">{sendError}</div>}
 
-                        <div className="mt-2 text-xs text-slate-500">
-                          We’ll email your estimate so you can share it internally.
-                        </div>
+                        <div className="mt-2 text-xs text-slate-500">We’ll email your estimate so you can share it internally.</div>
                       </div>
                     )}
 
+                    {/* Includes */}
                     <div className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
-                      <div className="font-medium text-slate-900">Includes</div>
+                      <div className="font-medium text-slate-900">What this typically includes</div>
                       <ul className="mt-2 list-disc space-y-1 pl-5">
-                        <li>On-site headshot booth setup (backdrop + lighting)</li>
-                        <li>Professional headshot specialist &amp; guided posing</li>
-                        <li>Lead capture + participant list (CSV)</li>
-                        <li>Instant delivery via individual galleries</li>
+                        {deliverables.map((d) => (
+                          <li key={d}>{d}</li>
+                        ))}
                       </ul>
 
                       <div className="mt-3 text-xs text-slate-500">{DISCLAIMER_TEXT}</div>
@@ -775,60 +926,77 @@ export default function Page() {
 
               {/* Recommended setup SECOND */}
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <h2 className="text-base font-semibold text-slate-900">Recommended setup</h2>
+                <h2 className="text-base font-semibold text-slate-900">Capacity &amp; staffing</h2>
 
                 {recommendedStations >= 3 ? (
                   <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
                     <div className="text-sm font-semibold text-slate-900">Multi-station team recommended (3+)</div>
                     <div className="mt-1 text-sm text-slate-600">
-                      Based on your time, pace, and demand estimate, you’ll likely need 3+ stations to meet your goals.
+                      Based on your time, pacing, and participation estimate, you’ll likely need 3+ photographer stations to meet your goal.
                     </div>
                   </div>
                 ) : (
                   <div className="mt-3 grid grid-cols-2 gap-3">
-                    <Stat label="Stations" value={`${stations}`} />
-                    <Stat label="Pricing tier" value={isHalfDayPerDay ? "Half-Day" : "Full-Day"} />
+                    <Stat label="Recommended photographer stations" value={`${stations}`} />
+                    <Stat label="Pacing" value={paceMeta.label} />
                   </div>
                 )}
 
                 <div className="mt-3 grid grid-cols-2 gap-3">
-                  <Stat label="Estimated capacity" value={`${capacityRange.low}–${capacityRange.high}`} />
+                  <Stat label="Estimated headshots possible" value={`${capacityRange.low}–${capacityRange.high}`} />
                   <Stat
-                    label="Estimated headshots"
-                    value={useDemandEstimate && computedExpectedHeadshots != null ? `${computedExpectedHeadshots}` : "Not provided"}
+                    label="Estimated headshots needed"
+                    value={useParticipationEstimate && computedExpectedHeadshots != null ? `${computedExpectedHeadshots}` : "Not provided"}
                   />
                 </div>
 
-                {demandStatus === "good" && (
-                  <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
-                    ✅ Your estimated capacity comfortably covers expected demand.
+                {/* Wait Time Estimate */}
+                <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+                  <div className="text-sm font-semibold text-slate-900">Wait Time Estimate</div>
+                  <div className="mt-1 flex items-start gap-2">
+                    <Badge status={waitTimeStatus} />
+                    <div>
+                      <div className="text-sm font-semibold text-slate-900">{waitTimeCopy.title}</div>
+                      <div className="text-sm text-slate-600">{waitTimeCopy.detail}</div>
+                    </div>
                   </div>
-                )}
-                {demandStatus === "close" && (
-                  <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
-                    ✅ Capacity looks solid — we’ll confirm event flow details on the quote call.
-                  </div>
-                )}
-                {demandStatus === "tight" && (
-                  <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
-                    ⚠ Capacity may be tight for your goal — consider an additional station or longer coverage.
-                  </div>
-                )}
+                </div>
 
-                {showCustomBanner && (
-                  <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
-                    If your event has complex logistics, 3+ stations, or unique deliverables, we’ll confirm a custom quote after a quick planning call.
+                {/* Cost per headshot */}
+                <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+                  <div className="text-sm font-semibold text-slate-900">Estimated cost per headshot</div>
+                  {costPerHeadshot ? (
+                    <>
+                      <div className="mt-1 text-sm text-slate-700">
+                        {formatMoney(costPerHeadshot.low)} – {formatMoney(costPerHeadshot.high)} per headshot
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        Based on your estimated participation (not total attendees).
+                      </div>
+                    </>
+                  ) : (
+                    <div className="mt-1 text-sm text-slate-600">Add an estimated number of headshots to see a per-headshot estimate.</div>
+                  )}
+                </div>
+
+                {/* ROI insight */}
+                <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+                  <div className="text-sm font-semibold text-slate-900">Planning insight</div>
+                  <div className="mt-1 text-sm text-slate-600">
+                    Professional headshots are often one of the highest-valued event perks. Many events see{" "}
+                    <span className="font-semibold text-slate-900">20–40% participation</span> when headshots are offered —
+                    especially when the booth is easy to find and the line stays manageable.
                   </div>
-                )}
+                </div>
               </div>
 
               {/* Notes THIRD */}
               <div className="rounded-xl border border-slate-200 p-4 text-sm text-slate-600">
                 <div className="font-medium text-slate-900">Notes</div>
                 <ul className="mt-2 list-disc space-y-1 pl-5">
-                  <li>Station recommendations are conservative to avoid overpromising throughput.</li>
-                  <li>High-volume pacing prioritizes flow; premium pacing provides more coaching per person.</li>
-                  <li>Multi-day events receive commitment pricing tiers (2–3 days / 4+ days).</li>
+                  <li>Capacity estimates assume a steady flow, but wait times can spike during breaks and high-traffic moments.</li>
+                  <li>“Photographer stations” refers to the number of photographers shooting at the same time.</li>
+                  <li>If your event has complex logistics or multiple stations, we’ll confirm a personalized quote after a quick planning chat.</li>
                 </ul>
               </div>
             </div>
@@ -850,4 +1018,17 @@ function Stat({ label, value }: { label: string; value: string }) {
       <div className="mt-1 text-lg font-semibold text-slate-900">{value}</div>
     </div>
   );
+}
+
+function Badge({ status }: { status: "green" | "yellow" | "red" | null }) {
+  if (!status) {
+    return <span className="mt-1 inline-block h-3 w-3 rounded-full border border-slate-300 bg-slate-100" />;
+  }
+  const cls =
+    status === "green"
+      ? "border-emerald-600 bg-emerald-500"
+      : status === "yellow"
+      ? "border-amber-600 bg-amber-500"
+      : "border-rose-600 bg-rose-500";
+  return <span className={`mt-1 inline-block h-3 w-3 rounded-full border ${cls}`} />;
 }
