@@ -103,18 +103,13 @@ export async function POST(req: Request) {
           This estimate is designed to help with early event budgeting. Final quotes are confirmed after reviewing your event details.
         </p>
 
-        <hr style="border:none; border-top:1px solid #e5e7eb; margin:20px 0;" />
-
-        <h3 style="margin:0 0 8px 0; font-size:18px; line-height:1.3; color:#111;">Next Step</h3>
-
-        <p style="margin:0 0 14px 0;">
-          If you'd like a confirmed quote and event plan for your conference or booth, you can request a quick quote here:
+        <p style="margin:0 0 12px 0;">
+          If you'd like, I can help refine the setup based on your event schedule and attendee flow.
         </p>
 
         <p style="margin:0 0 16px 0;">
-          <a href="${quoteUrl}" style="display:inline-block; background:#111827; color:#fff; text-decoration:none; padding:10px 14px; border-radius:10px; font-weight:600;">
-            Request a Custom Quote
-          </a>
+          <strong>Does this look close to what you're planning, or would you like help refining the setup?</strong><br />
+          Just reply and tell me a little about your event.
         </p>
 
         <p style="margin:0 0 12px 0; font-size:13px; color:#374151;">
