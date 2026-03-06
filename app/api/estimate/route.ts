@@ -13,6 +13,7 @@ type Payload = {
   expectedHeadshotsLabel: string;
   paceLabel: string;
   recommendedStations: number;
+  recommendedStationsLabel?: string;
 
   capacityLow: number;
   capacityHigh: number;
@@ -93,7 +94,7 @@ export async function POST(req: Request) {
             <div><strong>Coverage:</strong> ${escapeHtml(body.hoursLabel)}</div>
             <div><strong>Expected demand:</strong> ${escapeHtml(body.expectedHeadshotsLabel)}</div>
             <div><strong>Pace:</strong> ${escapeHtml(body.paceLabel)}</div>
-            <div><strong>Recommended stations:</strong> ${body.recommendedStations}</div>
+            <div><strong>Recommended stations:</strong> ${escapeHtml(body.recommendedStationsLabel || String(body.recommendedStations))}</div>
             <div><strong>Estimated capacity:</strong> ${body.capacityLow}–${body.capacityHigh} headshots</div>
           </div>
         </div>
@@ -153,7 +154,7 @@ export async function POST(req: Request) {
           <p style="margin:0 0 6px 0;"><strong>Coverage:</strong> ${escapeHtml(body.hoursLabel)}</p>
           <p style="margin:0 0 6px 0;"><strong>Expected demand:</strong> ${escapeHtml(body.expectedHeadshotsLabel)}</p>
           <p style="margin:0 0 6px 0;"><strong>Pace:</strong> ${escapeHtml(body.paceLabel)}</p>
-          <p style="margin:0 0 6px 0;"><strong>Stations:</strong> ${body.recommendedStations}</p>
+          <p style="margin:0 0 6px 0;"><strong>Stations:</strong> ${escapeHtml(body.recommendedStationsLabel || String(body.recommendedStations))}</p>
           <p style="margin:0;"><strong>Capacity:</strong> ${body.capacityLow}–${body.capacityHigh}</p>
         </div>
 
