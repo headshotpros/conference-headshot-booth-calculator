@@ -288,7 +288,7 @@ export default function Page() {
   }, [useParticipationEstimate, computedExpectedHeadshots, capacityRange.low, capacityRange.high]);
 
   const waitTimeCopy = useMemo(() => {
-    if (!waitTimeStatus) return { title: "Add an estimate to see this", detail: "Turn on the estimate above to see a wait-time prediction." };
+    if (!waitTimeStatus) return { title: "Add your expected headshot count", detail: "Turn on 'how many people need headshots' above to see a wait-time prediction." };
 
     if (waitTimeStatus === "green") {
       return { title: "Smooth flow", detail: "Most people should move through quickly with a comfortable buffer." };
@@ -733,7 +733,7 @@ export default function Page() {
                   </>
                 ) : (
                   <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
-                    Estimate is off — we’ll still show budget range, but staffing and wait-time estimates will be limited.
+                    Headshot estimate is off — we’ll still show budget range, but staffing and wait-time predictions will be limited.
                   </div>
                 )}
               </div>
@@ -1039,7 +1039,9 @@ export default function Page() {
                       Not shown because the headshots needed exceed capacity. Add stations or time to get a usable per-headshot estimate.
                     </div>
                   ) : (
-                    <div className="mt-1 text-sm text-slate-600">Turn on the estimate above to see a per-headshot estimate.</div>
+                    <div className="mt-1 text-sm text-slate-600">
+Add how many people you expect will get headshots above to see a per-headshot estimate.
+</div>
                   )}
                 </div>
 
