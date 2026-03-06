@@ -411,16 +411,19 @@ export default function Page() {
     if (boothType === "CONVENTION") {
       return [
         "On-site headshot booth setup (backdrop + lighting)",
-        "High-volume headshot workflow & posing guidance",
-        "Instant delivery via individual gallery links",
-        "Optional lead capture + participant list export (CSV)"
+        "High-volume headshot workflow with quick posing and expression guidance",
+        "Instant delivery via email with individual gallery links",
+        "Optional lead capture + participant list export (CSV)",
+        "Optional sponsor or company branding added to galleries and delivery pages"
       ];
     }
     return [
       "Mobile studio setup at your location (backdrop + lighting)",
       "Posing & expression coaching for a consistent, professional look",
       "Streamlined file naming by participant (with provided list)",
-      "Scheduling-friendly workflow to keep teams moving"
+      "Flexible workflow — scheduled time slots or walk-up flow to keep teams moving smoothly",
+      "Instant delivery via email with individual gallery links",
+      "Optional company branding added to galleries and delivery pages"
     ];
   }, [boothType]);
 
@@ -835,7 +838,7 @@ export default function Page() {
                         {formatMoney(pricing.low)} – {formatMoney(pricing.high)}
                       </div>
                       <div className="mt-1 text-sm text-slate-600">
-                        Use this tool to estimate your event budget. We’ll provide a personalized quote after reviewing your event details.
+                        Use this tool to estimate a budget range for your event. We’ll provide a personalized quote after reviewing your event details.
                       </div>
 
                       {pricing.discount > 0 && (
@@ -945,6 +948,10 @@ export default function Page() {
                         ))}
                       </ul>
 
+                      {boothType === "CONVENTION" && (
+                        <div className="mt-3 text-sm text-slate-700">A workflow designed specifically for conferences, trade shows, and large team events.</div>
+                      )}
+
                       <div className="mt-3 text-xs text-slate-500">{DISCLAIMER_TEXT}</div>
                     </div>
                   </>
@@ -972,7 +979,7 @@ export default function Page() {
 
               {/* Capacity & Staffing */}
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <h2 className="text-base font-semibold text-slate-900">Capacity &amp; staffing</h2>
+                <h2 className="text-base font-semibold text-slate-900">Suggested headshot booth setup</h2>
 
                 <div className="mt-3 grid grid-cols-2 gap-3">
                   <Stat label="Recommended photographer stations" value={stationsLabel} />
@@ -980,7 +987,7 @@ export default function Page() {
                 </div>
 
                 <div className="mt-3 grid grid-cols-2 gap-3">
-                  <Stat label="Estimated headshots possible" value={`${capacityRange.low}–${capacityRange.high}`} />
+                  <Stat label="Estimated coverage" value={`${capacityRange.low}–${capacityRange.high} attendees`} />
                   <Stat
                     label="Estimated headshots needed"
                     value={useParticipationEstimate && computedExpectedHeadshots != null ? `${computedExpectedHeadshots}` : "Not provided"}
@@ -995,6 +1002,12 @@ export default function Page() {
                     </div>
                   </div>
                 )}
+
+                <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+                  <div className="text-sm font-semibold text-slate-900">Capacity note</div>
+                  <div className="mt-1 text-sm text-slate-600">Estimated capacity assumes a steady flow of attendees during the session.</div>
+                  <div className="mt-1 text-sm text-slate-600">Actual numbers may vary depending on participation and booth traffic.</div>
+                </div>
 
                 <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
                   <div className="text-sm font-semibold text-slate-900">Wait Time Estimate</div>
