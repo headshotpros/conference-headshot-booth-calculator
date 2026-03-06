@@ -490,7 +490,7 @@ export default function Page() {
               }`}
             >
               <div className="text-sm font-semibold text-slate-900">Company Team Event</div>
-              <div className="mt-1 text-sm text-slate-600">Headshots for your employees — often scheduled so everyone can be photographed efficiently.</div>
+              <div className="mt-1 text-sm text-slate-600">Headshots for your employees — when you're photographing your team all in one place.</div>
             </button>
           </div>
         </section>
