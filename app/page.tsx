@@ -124,7 +124,7 @@ export default function Page() {
 
   // Photographer stations
   const [autoStations, setAutoStations] = useState(true);
-  const [stationsOverride, setStationsOverride] = useState<1 | 2>(1);
+  const [stationsOverride, setStationsOverride] = useState<1 | 2 | 3>(1);
 
   // Options
   const [addMakeup, setAddMakeup] = useState(false);
@@ -210,13 +210,21 @@ export default function Page() {
     return 3; // 3+ signals multi-station team
   }, [useParticipationEstimate, computedExpectedHeadshots, totalHours, paceMeta]);
 
+  const recommendedStationsLabel = useMemo(() => {
+    return recommendedStations >= 3 ? "3+" : `${recommendedStations}`;
+  }, [recommendedStations]);
+
   const stations = useMemo(() => {
     if (!autoStations) return stationsOverride;
-    return recommendedStations >= 3 ? 2 : (recommendedStations as 1 | 2);
+    return recommendedStations >= 3 ? 3 : (recommendedStations as 1 | 2 | 3);
   }, [autoStations, stationsOverride, recommendedStations]);
 
+  const stationsLabel = useMemo(() => {
+    return autoStations ? recommendedStationsLabel : `${stations}`;
+  }, [autoStations, recommendedStationsLabel, stations]);
+
   // Makeup artists max = photographer stations
-  const makeupArtistsMax = useMemo(() => (stations === 2 ? 2 : 1), [stations]);
+  const makeupArtistsMax = useMemo(() => Math.min(stations, 2) as 1 | 2, [stations]);
   useEffect(() => {
     if (makeupArtists > makeupArtistsMax) setMakeupArtists(makeupArtistsMax as 1 | 2);
   }, [makeupArtists, makeupArtistsMax]);
@@ -254,7 +262,8 @@ export default function Page() {
       : ADDONS.enhancedRetouchPerStation.fullDay;
     const makeupPerArtistPerDay = isHalfDayPerDay ? ADDONS.makeupArtist.halfDay : ADDONS.makeupArtist.fullDay;
 
-    const addStation = stations === 2 ? secondStationPerDay : 0;
+    const additionalStations = Math.max(0, stations - 1);
+    const addStation = secondStationPerDay * additionalStations;
     const addEnhanced = addEnhancedRetouch ? enhancedRetouchPerStationPerDay * stations : 0;
     const addMakeupCost = addMakeup ? makeupPerArtistPerDay * makeupArtists : 0;
 
@@ -373,6 +382,7 @@ export default function Page() {
   expectedHeadshotsLabel,
   paceLabel,
   recommendedStations: stations,
+  recommendedStationsLabel: stationsLabel,
   capacityLow: capacityRange.low,
   capacityHigh: capacityRange.high,
   disclaimerText: DISCLAIMER_TEXT,
@@ -742,11 +752,12 @@ export default function Page() {
                   {!autoStations && (
                     <select
                       value={stationsOverride}
-                      onChange={(e) => setStationsOverride(parseInt(e.target.value, 10) as 1 | 2)}
+                      onChange={(e) => setStationsOverride(parseInt(e.target.value, 10) as 1 | 2 | 3)}
                       className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
                     >
                       <option value={1}>1 photographer station</option>
                       <option value={2}>2 photographer stations</option>
+                      <option value={3}>3 photographer stations</option>
                     </select>
                   )}
                 </div>
@@ -964,7 +975,7 @@ export default function Page() {
                 <h2 className="text-base font-semibold text-slate-900">Capacity &amp; staffing</h2>
 
                 <div className="mt-3 grid grid-cols-2 gap-3">
-                  <Stat label="Recommended photographer stations" value={`${stations}`} />
+                  <Stat label="Recommended photographer stations" value={stationsLabel} />
                   <Stat label="Pacing" value={paceMeta.label} />
                 </div>
 
