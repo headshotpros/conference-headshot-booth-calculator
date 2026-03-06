@@ -361,26 +361,25 @@ export default function Page() {
 
     try {
       const payload = {
-        email: leadEmail.trim(),
-        firstName: leadFirstName.trim(),
-        phone: leadIntent === "ready_for_call" ? leadPhone.trim() || undefined : undefined,
-        intent: leadIntent,
+  email: leadEmail.trim(),
+  firstName: leadFirstName.trim(),
+  phone: leadIntent === "ready_for_call" ? leadPhone.trim() || undefined : undefined,
+  intent: leadIntent,
 
-        estimateLow: pricing.low,
-        estimateHigh: pricing.high,
+  estimateLow: pricing.low,
+  estimateHigh: pricing.high,
 
-        hoursLabel,
-        expectedHeadshotsLabel,
-        paceLabel,
-        recommendedStations: recommendedStations >= 3 ? 3 : recommendedStations,
-        capacityLow: capacityRange.low,
-        capacityHigh: capacityRange.high,
-        disclaimerText: DISCLAIMER_TEXT,
+  hoursLabel,
+  expectedHeadshotsLabel,
+  paceLabel,
+  recommendedStations: stations,
+  capacityLow: capacityRange.low,
+  capacityHigh: capacityRange.high,
+  disclaimerText: DISCLAIMER_TEXT,
 
-        boothType,
-        optInWorksheet
-      };
-
+  boothType,
+  optInWorksheet
+};
       const res = await fetch("/api/estimate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
