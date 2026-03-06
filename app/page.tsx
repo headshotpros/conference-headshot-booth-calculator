@@ -71,19 +71,19 @@ const ADDONS = {
 // Pace = minutes/person + people/hour (range)
 const PACE = {
   HIGH: {
-    label: "High Volume Booth",
+    label: "Express Headshot Booth",
     minutesRange: [2, 3] as [number, number],
     perHourRange: [20, 30] as [number, number],
     conservativePerHour: 20
   },
   STANDARD: {
-    label: "Standard Experience",
+    label: "Professional Headshot Experience",
     minutesRange: [4, 5] as [number, number],
     perHourRange: [12, 15] as [number, number],
     conservativePerHour: 12
   },
   PREFERRED: {
-    label: "Preferred / Premium Experience",
+    label: "Premium Headshot Experience",
     minutesRange: [7, 10] as [number, number],
     perHourRange: [6, 9] as [number, number],
     conservativePerHour: 6
@@ -139,6 +139,7 @@ export default function Page() {
   const [leadEmail, setLeadEmail] = useState("");
   const [leadIntent, setLeadIntent] = useState<LeadIntent>("budgeting");
   const [leadPhone, setLeadPhone] = useState("");
+  const [eventTimeline, setEventTimeline] = useState("");
   const [optInWorksheet, setOptInWorksheet] = useState(true);
 
   const firstNameInputRef = useRef<HTMLInputElement | null>(null);
@@ -172,6 +173,7 @@ export default function Page() {
     setShowEmailForm(false);
     setSentOk(false);
     setSendError(null);
+    setEventTimeline("");
   }, [boothType]);
 
   // Derived: total hours
@@ -197,7 +199,7 @@ export default function Page() {
     return Math.max(1, Math.round(a * p));
   }, [useParticipationEstimate, volumeInputMode, expectedHeadshots, attendees, participationRate]);
 
-  // Recommended photographer stations (conservative) — uses REAL_WORLD_BUFFER
+  // Recommended photographer stations
   const recommendedStations = useMemo(() => {
     if (!useParticipationEstimate || computedExpectedHeadshots == null) return 1;
 
@@ -288,7 +290,12 @@ export default function Page() {
   }, [useParticipationEstimate, computedExpectedHeadshots, capacityRange.low, capacityRange.high]);
 
   const waitTimeCopy = useMemo(() => {
-    if (!waitTimeStatus) return { title: "Add your expected headshot count", detail: "Turn on 'how many people need headshots' above to see a wait-time prediction." };
+    if (!waitTimeStatus) {
+      return {
+        title: "Add your expected headshot count",
+        detail: "Turn on 'how many people need headshots' above to see a wait-time prediction."
+      };
+    }
 
     if (waitTimeStatus === "green") {
       return { title: "Smooth flow", detail: "Most people should move through quickly with a comfortable buffer." };
@@ -374,6 +381,7 @@ export default function Page() {
         firstName: leadFirstName.trim(),
         phone: leadIntent === "ready_for_call" ? leadPhone.trim() || undefined : undefined,
         intent: leadIntent,
+        timeline: eventTimeline || undefined,
 
         estimateLow: pricing.low,
         estimateHigh: pricing.high,
@@ -793,20 +801,19 @@ export default function Page() {
                       <div className="ml-7 grid gap-2">
                         <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Makeup artists</label>
                         <select
-  value={makeupArtists}
-  onChange={(e) => setMakeupArtists(parseInt(e.target.value, 10) as 1 | 2 | 3)}
-  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
->
-  <option value={1}>1 makeup artist</option>
-  {makeupArtistsMax >= 2 && <option value={2}>2 makeup artists</option>}
-  {makeupArtistsMax >= 3 && <option value={3}>3 makeup artists (one per station)</option>}
-</select>
-<p className="text-xs text-slate-500">
-      Additional makeup artists help reduce bottlenecks and keep participants camera-ready.
-    </p>
-  </div>
-)}
-                      
+                          value={makeupArtists}
+                          onChange={(e) => setMakeupArtists(parseInt(e.target.value, 10) as 1 | 2 | 3)}
+                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                        >
+                          <option value={1}>1 makeup artist</option>
+                          {makeupArtistsMax >= 2 && <option value={2}>2 makeup artists</option>}
+                          {makeupArtistsMax >= 3 && <option value={3}>3 makeup artists (one per station)</option>}
+                        </select>
+                        <p className="text-xs text-slate-500">
+                          Additional makeup artists help reduce bottlenecks and keep participants camera-ready.
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   <label className="flex items-start gap-3 text-sm text-slate-700">
@@ -852,22 +859,23 @@ export default function Page() {
                       )}
                     </div>
 
-                    {/* Primary CTA: Send estimate */}
                     {!showEmailForm && (
                       <button
                         onClick={openEmailFormAndFocusFirstName}
                         className="mt-4 w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
                       >
-                        Email this estimate
+                        Save my estimate
                       </button>
                     )}
 
-                    {/* Email form */}
                     {showEmailForm && (
                       <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-                        <div className="text-sm font-semibold text-slate-900">Send my estimate</div>
+                        <h3 className="text-lg font-semibold text-slate-900">Save Your Results</h3>
+                        <p className="mt-2 text-sm text-slate-600">
+                          Want to save or share this estimate with your team? Enter your email and we’ll send the results instantly.
+                        </p>
 
-                        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                           <input
                             ref={firstNameInputRef}
                             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
@@ -917,6 +925,69 @@ export default function Page() {
                           </div>
                         )}
 
+                        <div className="mt-4">
+                          <label className="block text-sm font-medium text-slate-700 mb-2">
+                            When is your event? <span className="text-slate-400">(optional)</span>
+                          </label>
+
+                          <div className="space-y-1 text-sm text-slate-700">
+                            <label className="flex items-center gap-2">
+                              <input
+                                type="radio"
+                                name="timeline"
+                                value="Next 30 days"
+                                checked={eventTimeline === "Next 30 days"}
+                                onChange={(e) => setEventTimeline(e.target.value)}
+                              />
+                              Next 30 days
+                            </label>
+
+                            <label className="flex items-center gap-2">
+                              <input
+                                type="radio"
+                                name="timeline"
+                                value="1–3 months"
+                                checked={eventTimeline === "1–3 months"}
+                                onChange={(e) => setEventTimeline(e.target.value)}
+                              />
+                              1–3 months
+                            </label>
+
+                            <label className="flex items-center gap-2">
+                              <input
+                                type="radio"
+                                name="timeline"
+                                value="3–6 months"
+                                checked={eventTimeline === "3–6 months"}
+                                onChange={(e) => setEventTimeline(e.target.value)}
+                              />
+                              3–6 months
+                            </label>
+
+                            <label className="flex items-center gap-2">
+                              <input
+                                type="radio"
+                                name="timeline"
+                                value="More than 6 months"
+                                checked={eventTimeline === "More than 6 months"}
+                                onChange={(e) => setEventTimeline(e.target.value)}
+                              />
+                              More than 6 months
+                            </label>
+
+                            <label className="flex items-center gap-2">
+                              <input
+                                type="radio"
+                                name="timeline"
+                                value="Just researching"
+                                checked={eventTimeline === "Just researching"}
+                                onChange={(e) => setEventTimeline(e.target.value)}
+                              />
+                              Just researching
+                            </label>
+                          </div>
+                        </div>
+
                         <label className="mt-3 flex items-start gap-3 text-sm text-slate-700">
                           <input
                             type="checkbox"
@@ -937,8 +1008,12 @@ export default function Page() {
                           disabled={sending || !canSendEmail || pricing.isCustom}
                           onClick={sendEstimateEmail}
                         >
-                          {sending ? "Sending…" : "Email my estimate"}
+                          {sending ? "Sending…" : "Save my estimate"}
                         </button>
+
+                        <p className="mt-2 text-xs text-slate-500">
+                          We&apos;ll send your estimate and occasional headshot booth planning tips.
+                        </p>
 
                         {sentOk && <div className="mt-3 text-sm text-green-700">Sent! Check your inbox — you can forward it to your team.</div>}
                         {sendError && <div className="mt-3 text-sm text-red-700">{sendError}</div>}
@@ -969,7 +1044,7 @@ export default function Page() {
                     onClick={openEmailFormAndFocusFirstName}
                     className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800"
                   >
-                    Email this estimate
+                    Save my estimate
                   </button>
 
                   <a
@@ -1022,9 +1097,7 @@ export default function Page() {
                     <div>
                       <div className="text-sm font-semibold text-slate-900">{waitTimeCopy.title}</div>
                       <div className="text-sm text-slate-600">{waitTimeCopy.detail}</div>
-                      <div className="mt-1 text-xs text-slate-500">
-                        Includes a conservative buffer for real-world pacing.
-                      </div>
+                      <div className="mt-1 text-xs text-slate-500">Includes a conservative buffer for real-world pacing.</div>
                     </div>
                   </div>
                 </div>
@@ -1044,8 +1117,8 @@ export default function Page() {
                     </div>
                   ) : (
                     <div className="mt-1 text-sm text-slate-600">
-Add how many people you expect will get headshots above to see a per-headshot estimate.
-</div>
+                      Add how many people you expect will get headshots above to see a per-headshot estimate.
+                    </div>
                   )}
                 </div>
 
