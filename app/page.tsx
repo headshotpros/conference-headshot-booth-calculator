@@ -201,7 +201,7 @@ export default function Page() {
   const recommendedStations = useMemo(() => {
     if (!useParticipationEstimate || computedExpectedHeadshots == null) return 1;
 
-    const bufferedThroughput = paceMeta.conservativePerHour * REAL_WORLD_BUFFER;
+    const bufferedThroughput = paceMeta.conservativePerHour;
     const capacityPerStation = totalHours * bufferedThroughput;
     const needed = Math.ceil(computedExpectedHeadshots / Math.max(1, capacityPerStation));
 
