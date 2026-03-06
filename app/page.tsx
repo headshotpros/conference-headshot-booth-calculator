@@ -128,7 +128,7 @@ export default function Page() {
 
   // Options
   const [addMakeup, setAddMakeup] = useState(false);
-  const [makeupArtists, setMakeupArtists] = useState<1 | 2>(1);
+  const [makeupArtists, setMakeupArtists] = useState<1 | 2 | 3>(1);
 
   // Light retouching is included.
   const [addEnhancedRetouch, setAddEnhancedRetouch] = useState(false);
@@ -224,9 +224,9 @@ export default function Page() {
   }, [autoStations, recommendedStationsLabel, stations]);
 
   // Makeup artists max = photographer stations
-  const makeupArtistsMax = useMemo(() => Math.min(stations, 2) as 1 | 2, [stations]);
+  const makeupArtistsMax = useMemo(() => Math.min(stations, 3) as 1 | 2 | 3, [stations]);
   useEffect(() => {
-    if (makeupArtists > makeupArtistsMax) setMakeupArtists(makeupArtistsMax as 1 | 2);
+    if (makeupArtists > makeupArtistsMax) setMakeupArtists(makeupArtistsMax as 1 | 2 | 3);
   }, [makeupArtists, makeupArtistsMax]);
 
   // Capacity estimate range (display) — uses REAL_WORLD_BUFFER
@@ -793,16 +793,20 @@ export default function Page() {
                       <div className="ml-7 grid gap-2">
                         <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Makeup artists</label>
                         <select
-                          value={makeupArtists}
-                          onChange={(e) => setMakeupArtists(parseInt(e.target.value, 10) as 1 | 2)}
-                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
-                        >
-                          <option value={1}>1 makeup artist</option>
-                          {makeupArtistsMax === 2 && <option value={2}>2 makeup artists (one per station)</option>}
-                        </select>
-                        <p className="text-xs text-slate-500">If you have 2 photographer stations, a second makeup artist can reduce bottlenecks.</p>
-                      </div>
-                    )}
+  value={makeupArtists}
+  onChange={(e) => setMakeupArtists(parseInt(e.target.value, 10) as 1 | 2 | 3)}
+  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+>
+  <option value={1}>1 makeup artist</option>
+  {makeupArtistsMax >= 2 && <option value={2}>2 makeup artists</option>}
+  {makeupArtistsMax >= 3 && <option value={3}>3 makeup artists (one per station)</option>}
+</select>
+<p className="text-xs text-slate-500">
+      Additional makeup artists help reduce bottlenecks and keep participants camera-ready.
+    </p>
+  </div>
+)}
+                      
                   </div>
 
                   <label className="flex items-start gap-3 text-sm text-slate-700">
