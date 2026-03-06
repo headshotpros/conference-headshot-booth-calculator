@@ -727,9 +727,15 @@ export default function Page() {
                       )}
                     </div>
 
-                    <div className="mt-3 text-sm text-slate-600">
-                      Estimated headshots: <span className="font-semibold text-slate-900">{computedExpectedHeadshots ?? "—"}</span>
-                    </div>
+                    <div className="mt-3 rounded-lg bg-slate-50 px-3 py-2">
+  <div className="text-xs text-slate-500">
+    Estimated headshots needed
+  </div>
+
+  <div className="text-lg font-semibold text-slate-900">
+    {computedExpectedHeadshots ?? "—"} people
+  </div>
+</div>
 
                     {under20Note && (
                       <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
