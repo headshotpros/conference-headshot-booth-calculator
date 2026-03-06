@@ -636,8 +636,9 @@ export default function Page() {
                       {boothType === "CONVENTION" ? "How many people do you expect will get headshots?" : "How many people need headshots?"}
                     </h2>
                     <p className="mt-1 text-sm text-slate-600">
-                      Turn this on to get staffing recommendations and a wait time estimate. Leave it off if you’re not sure yet.
-                    </p>
+                      Turn this on to estimate photographer stations and wait times.
+Enter the number of people who want headshots, or use total attendees to estimate participation.
+</p>
                   </div>
 
                   <label className="inline-flex items-center gap-2 text-sm text-slate-700">
