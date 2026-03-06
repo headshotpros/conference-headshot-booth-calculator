@@ -33,6 +33,7 @@ function formatHoursToDaysHours(totalHours: number) {
 
 // Public quote link button from this calculator
 const QUOTE_URL = "https://headshotprosaz.com/professional-headshot-booth-phoenix/#quote";
+const COMPANY_HEADSHOTS_QUOTE_URL = "https://headshotprosaz.com/company-headshots-phoenix/#quote";
 
 const DISCLAIMER_TEXT =
   "Travel may apply outside the Phoenix metro area. Venue parking fees or accommodations may apply depending on the location and event schedule. Arizona sales tax (8.3%) added where applicable.";
@@ -109,7 +110,7 @@ export default function Page() {
   const [attendees, setAttendees] = useState(600);
   const [participationRate, setParticipationRate] = useState(25); // %
 
-  // OFF by default (per your request)
+  // OFF by default
   const [useParticipationEstimate, setUseParticipationEstimate] = useState(false);
 
   // Pace
@@ -142,12 +143,12 @@ export default function Page() {
   const [sentOk, setSentOk] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
 
-  // When booth type changes, set sensible defaults (but keep estimate OFF)
+  // When booth type changes, set sensible defaults (and default input mode!)
   useEffect(() => {
     if (boothType === "CONVENTION") {
       setMode("TIME");
       setPace("HIGH");
-      setVolumeInputMode("ATTENDEES");
+      setVolumeInputMode("ATTENDEES"); // ✅ convention default
       setParticipationRate(25);
       setAttendees(600);
       setExpectedHeadshots(120);
@@ -155,7 +156,7 @@ export default function Page() {
     } else {
       setMode("VOLUME");
       setPace("STANDARD");
-      setVolumeInputMode("HEADSHOTS");
+      setVolumeInputMode("HEADSHOTS"); // ✅ company default
       setExpectedHeadshots(40);
       setAttendees(200);
       setParticipationRate(20);
@@ -272,7 +273,7 @@ export default function Page() {
   }, [useParticipationEstimate, computedExpectedHeadshots, capacityRange.low, capacityRange.high]);
 
   const waitTimeCopy = useMemo(() => {
-    if (!waitTimeStatus) return { title: "Add an estimate to see this", detail: "Turn on participation estimate to get a wait-time prediction." };
+    if (!waitTimeStatus) return { title: "Add an estimate to see this", detail: "Turn on the estimate above to see a wait-time prediction." };
 
     if (waitTimeStatus === "green") {
       return { title: "Smooth flow", detail: "Most people should move through quickly with a comfortable buffer." };
@@ -293,6 +294,18 @@ export default function Page() {
     const high = Math.round(pricing.high / computedExpectedHeadshots);
     return { low, high };
   }, [pricing, useParticipationEstimate, computedExpectedHeadshots, demandExceedsCapacity]);
+
+  // Under-20 note (company style)
+  const under20Note = useMemo(() => {
+    if (boothType !== "COMPANY") return null;
+    if (!useParticipationEstimate || computedExpectedHeadshots == null) return null;
+    if (computedExpectedHeadshots >= 20) return null;
+
+    return {
+      title: "Small team?",
+      body: "For groups under 20, we typically quote using our company headshot structure (it’s often a better fit than booth pricing)."
+    };
+  }, [boothType, useParticipationEstimate, computedExpectedHeadshots]);
 
   const hoursLabel = useMemo(() => {
     if (!isMultiDay) return `${roundToHalf(perDayHours)} hours`;
@@ -322,11 +335,7 @@ export default function Page() {
 
   function onModeChange(next: Mode) {
     setMode(next);
-
-    // If they say they know volume, turn on estimate and jump to it
-    if (next === "VOLUME") {
-      scrollToParticipationAndEnable();
-    }
+    if (next === "VOLUME") scrollToParticipationAndEnable();
   }
 
   function openEmailFormAndFocusFirstName() {
@@ -347,7 +356,7 @@ export default function Page() {
     try {
       const payload = {
         email: leadEmail.trim(),
-        firstName: leadFirstName.trim(), // required now
+        firstName: leadFirstName.trim(),
         phone: leadIntent === "ready_for_call" ? leadPhone.trim() || undefined : undefined,
         intent: leadIntent,
 
@@ -407,13 +416,13 @@ export default function Page() {
       return {
         title: "ROI planning insight (for conventions)",
         body:
-          "Headshots are a high-value attendee perk and a strong sponsor activation. The easier the booth is to find (and the shorter the wait), the more people will participate — which means more engagement on the expo floor and more conversations at the booth."
+          "Headshots are a high-value attendee perk and a strong sponsor activation. When the booth is easy to find and the wait stays manageable, participation climbs — and attendees leave with a “gift” they’ll actually use (a new profile photo) that keeps your brand top-of-mind after the event."
       };
     }
     return {
       title: "ROI planning insight (for company conferences)",
       body:
-        "Team headshots reduce friction for employees (no individual scheduling) and create consistent, professional images across leadership and staff. It’s one of the fastest ways to update LinkedIn profiles, internal directories, and marketing materials in a single day."
+        "Team headshots reduce friction (no individual scheduling) and create consistent, professional images across leadership and staff. A great experience also helps employees feel valued and confident — which shows up in the photos and in how they represent the company afterward."
     };
   }, [boothType]);
 
@@ -612,8 +621,7 @@ export default function Page() {
 
               {/* Participation / demand */}
               <div ref={participationSectionRef} className="rounded-xl border border-slate-200 p-4">
-                <div ref={participationSectionRef} />
-                <div className="flex items-start justify-between gap-3" ref={participationSectionRef as any}>
+                <div className="flex items-start justify-between gap-3">
                   <div>
                     <h2 className="text-base font-semibold text-slate-900">
                       {boothType === "CONVENTION" ? "How many people do you expect will get headshots?" : "How many people need headshots?"}
@@ -655,6 +663,11 @@ export default function Page() {
                           Total attendees
                         </button>
                       </div>
+                      <p className="mt-2 text-xs text-slate-500">
+                        {boothType === "CONVENTION"
+                          ? "Total attendees = everyone at the event. We’ll estimate headshots using a participation percentage."
+                          : "People who want headshots = how many team members you want photographed."}
+                      </p>
                     </div>
 
                     <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -701,6 +714,21 @@ export default function Page() {
                     <div className="mt-3 text-sm text-slate-600">
                       Estimated headshots: <span className="font-semibold text-slate-900">{computedExpectedHeadshots ?? "—"}</span>
                     </div>
+
+                    {under20Note && (
+                      <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                        <div className="font-semibold text-slate-900">{under20Note.title}</div>
+                        <div className="mt-1 text-slate-600">{under20Note.body}</div>
+                        <a
+                          href={COMPANY_HEADSHOTS_QUOTE_URL}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-2 inline-flex items-center justify-center rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+                        >
+                          View small-team options
+                        </a>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
@@ -816,7 +844,9 @@ export default function Page() {
                       </div>
 
                       {pricing.discount > 0 && (
-                        <div className="mt-2 text-xs text-slate-500">Multi-day pricing applied ({Math.round(pricing.discount * 100)}% off per day).</div>
+                        <div className="mt-2 text-xs text-slate-500">
+                          Multi-day pricing applied ({Math.round(pricing.discount * 100)}% off per day).
+                        </div>
                       )}
                     </div>
 
@@ -946,26 +976,16 @@ export default function Page() {
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <h2 className="text-base font-semibold text-slate-900">Capacity &amp; staffing</h2>
 
-                {recommendedStations >= 3 ? (
-                  <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
-                    <div className="text-sm font-semibold text-slate-900">Multi-station team recommended (3+)</div>
-                    <div className="mt-1 text-sm text-slate-600">
-                      Based on your time, pacing, and participation estimate, you’ll likely need 3+ photographer stations to meet your goal.
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mt-3 grid grid-cols-2 gap-3">
-                    <Stat label="Recommended photographer stations" value={`${stations}`} />
-                    <Stat label="Pacing" value={paceMeta.label} />
-                  </div>
-                )}
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <Stat label="Recommended photographer stations" value={`${stations}`} />
+                  <Stat label="Pacing" value={paceMeta.label} />
+                </div>
 
                 <div className="mt-3 grid grid-cols-2 gap-3">
                   <Stat label="Estimated headshots possible" value={`${capacityRange.low}–${capacityRange.high}`} />
                   <Stat label="Estimated headshots needed" value={useParticipationEstimate && computedExpectedHeadshots != null ? `${computedExpectedHeadshots}` : "Not provided"} />
                 </div>
 
-                {/* Demand exceeds capacity warning */}
                 {demandExceedsCapacity && (
                   <div className="mt-3 rounded-lg border border-rose-200 bg-white p-3 text-sm text-slate-700">
                     <div className="font-semibold text-slate-900">Heads up: your headshots needed exceed estimated capacity.</div>
@@ -975,7 +995,6 @@ export default function Page() {
                   </div>
                 )}
 
-                {/* Wait Time Estimate */}
                 <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
                   <div className="text-sm font-semibold text-slate-900">Wait Time Estimate</div>
                   <div className="mt-1 flex items-start gap-2">
@@ -987,7 +1006,6 @@ export default function Page() {
                   </div>
                 </div>
 
-                {/* Cost per headshot */}
                 <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
                   <div className="text-sm font-semibold text-slate-900">Estimated cost per headshot</div>
                   {costPerHeadshot ? (
@@ -1006,18 +1024,27 @@ export default function Page() {
                   )}
                 </div>
 
-                {/* Planning Insight */}
                 <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
                   <div className="text-sm font-semibold text-slate-900">{planningInsight.title}</div>
                   <div className="mt-1 text-sm text-slate-600">{planningInsight.body}</div>
                 </div>
               </div>
 
-              {/* What to do next */}
               <div className="rounded-xl border border-slate-200 p-4 text-sm text-slate-600">
                 <div className="font-medium text-slate-900">What to do next</div>
                 <ul className="mt-2 list-disc space-y-1 pl-5">
-                  {nextSteps.map((s) => (
+                  {(boothType === "CONVENTION"
+                    ? [
+                        "Email yourself the estimate to share internally.",
+                        "Request a custom quote so we can confirm booth location, power/space needs, branding options, and event flow.",
+                        "If you have sponsors, we can recommend a station count that keeps the line moving during peak times."
+                      ]
+                    : [
+                        "Email yourself the estimate to share internally.",
+                        "Request a custom quote so we can confirm schedule flow, staffing plan, and naming/scheduling needs.",
+                        "If you want everyone photographed, we’ll confirm the best pacing + station count to hit your target."
+                      ]
+                  ).map((s) => (
                     <li key={s}>{s}</li>
                   ))}
                 </ul>
