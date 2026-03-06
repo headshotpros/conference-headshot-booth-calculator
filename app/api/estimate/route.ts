@@ -5,6 +5,7 @@ type Payload = {
   firstName?: string;
   phone?: string;
   intent?: "budgeting" | "ready_for_call";
+  timeline?: string;
 
   estimateLow: number;
   estimateHigh: number;
@@ -39,8 +40,14 @@ function formatMoney(n: number) {
 }
 
 function boothTypeLabel(boothType?: "CONVENTION" | "COMPANY") {
-  if (boothType === "COMPANY") return "Company Conference / Team Event";
-  if (boothType === "CONVENTION") return "Convention / Expo Booth";
+  if (boothType === "COMPANY") return "Company Team Event";
+  if (boothType === "CONVENTION") return "Conference / Expo Booth";
+  return "Not specified";
+}
+
+function intentLabel(intent?: "budgeting" | "ready_for_call") {
+  if (intent === "ready_for_call") return "Would like a quick planning call";
+  if (intent === "budgeting") return "Budgeting / gathering quotes";
   return "Not specified";
 }
 
@@ -71,6 +78,7 @@ export async function POST(req: Request) {
     const firstName = body.firstName?.trim() || "";
     const greet = firstName ? `Hi ${escapeHtml(firstName)}!` : "Hi there!";
     const eventType = boothTypeLabel(body.boothType);
+    const timeline = body.timeline?.trim() || "";
 
     const subject =
       body.boothType === "COMPANY"
@@ -84,13 +92,14 @@ export async function POST(req: Request) {
         <h2 style="margin:0 0 10px 0;">${escapeHtml(subject)}</h2>
 
         <div style="border:1px solid #e5e7eb; border-radius:12px; padding:16px; background:#f9fafb; margin:14px 0;">
-          <div style="font-size:14px; color:#374151;">Estimated Investment Range</div>
+          <div style="font-size:14px; color:#374151;">Estimated Budget Range</div>
           <div style="font-size:28px; font-weight:700; margin-top:2px;">
             $${formatMoney(body.estimateLow)} – $${formatMoney(body.estimateHigh)}
           </div>
 
           <div style="margin-top:12px; font-size:14px; color:#111;">
             <div><strong>Event type:</strong> ${escapeHtml(eventType)}</div>
+            ${timeline ? `<div><strong>Event timeline:</strong> ${escapeHtml(timeline)}</div>` : ""}
             <div><strong>Coverage:</strong> ${escapeHtml(body.hoursLabel)}</div>
             <div><strong>Expected demand:</strong> ${escapeHtml(body.expectedHeadshotsLabel)}</div>
             <div><strong>Pace:</strong> ${escapeHtml(body.paceLabel)}</div>
@@ -116,6 +125,10 @@ export async function POST(req: Request) {
           Feel free to forward this estimate to your team or event sponsors.
         </p>
 
+        <p style="margin:0 0 12px 0; font-size:12px; color:#6b7280;">
+          We’ll send your estimate and occasional headshot booth planning tips.
+        </p>
+
         <p style="margin:0 0 14px 0; color:#6b7280; font-size:12px;">
           ${escapeHtml(body.disclaimerText)}
         </p>
@@ -124,7 +137,6 @@ export async function POST(req: Request) {
       </div>
     `;
 
-    // 1) Email to them
     await resend.emails.send({
       from,
       to: body.email,
@@ -132,7 +144,6 @@ export async function POST(req: Request) {
       html
     });
 
-    // 2) Lead notification to you
     const leadHtml = `
       <div style="font-family:Arial,Helvetica,sans-serif; line-height:1.45; color:#111; max-width:680px;">
         <h2 style="margin:0 0 10px 0;">New Calculator Lead</h2>
@@ -140,7 +151,8 @@ export async function POST(req: Request) {
         <p style="margin:0 0 6px 0;"><strong>Name:</strong> ${body.firstName ? escapeHtml(body.firstName) : "Not provided"}</p>
         <p style="margin:0 0 6px 0;"><strong>Email:</strong> ${escapeHtml(body.email)}</p>
         ${body.phone ? `<p style="margin:0 0 6px 0;"><strong>Phone:</strong> ${escapeHtml(body.phone)}</p>` : ""}
-        ${body.intent ? `<p style="margin:0 0 6px 0;"><strong>Intent:</strong> ${escapeHtml(body.intent)}</p>` : ""}
+        <p style="margin:0 0 6px 0;"><strong>Intent:</strong> ${escapeHtml(intentLabel(body.intent))}</p>
+        ${timeline ? `<p style="margin:0 0 6px 0;"><strong>Event Timeline:</strong> ${escapeHtml(timeline)}</p>` : ""}
         <p style="margin:0 0 6px 0;"><strong>Event Type:</strong> ${escapeHtml(eventType)}</p>
         <p style="margin:0 0 6px 0;"><strong>Worksheet Opt-In:</strong> ${body.optInWorksheet ? "Yes" : "No"}</p>
 
