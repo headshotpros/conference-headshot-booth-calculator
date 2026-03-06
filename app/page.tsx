@@ -370,26 +370,26 @@ export default function Page() {
 
     try {
       const payload = {
-  email: leadEmail.trim(),
-  firstName: leadFirstName.trim(),
-  phone: leadIntent === "ready_for_call" ? leadPhone.trim() || undefined : undefined,
-  intent: leadIntent,
+        email: leadEmail.trim(),
+        firstName: leadFirstName.trim(),
+        phone: leadIntent === "ready_for_call" ? leadPhone.trim() || undefined : undefined,
+        intent: leadIntent,
 
-  estimateLow: pricing.low,
-  estimateHigh: pricing.high,
+        estimateLow: pricing.low,
+        estimateHigh: pricing.high,
 
-  hoursLabel,
-  expectedHeadshotsLabel,
-  paceLabel,
-  recommendedStations: stations,
-  recommendedStationsLabel: stationsLabel,
-  capacityLow: capacityRange.low,
-  capacityHigh: capacityRange.high,
-  disclaimerText: DISCLAIMER_TEXT,
+        hoursLabel,
+        expectedHeadshotsLabel,
+        paceLabel,
+        recommendedStations: stations,
+        recommendedStationsLabel: stationsLabel,
+        capacityLow: capacityRange.low,
+        capacityHigh: capacityRange.high,
+        disclaimerText: DISCLAIMER_TEXT,
 
-  boothType,
-  optInWorksheet
-};
+        boothType,
+        optInWorksheet
+      };
       const res = await fetch("/api/estimate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -452,14 +452,16 @@ export default function Page() {
         <header className="space-y-3">
           <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900">{title}</h1>
           <p className="text-slate-600 text-base sm:text-lg">
-            Estimate a realistic budget range, recommended photographer stations, capacity, and wait time — in plain English.
+            {boothType === "CONVENTION"
+              ? "Plan your conference headshot booth — including budget range, recommended photographer stations, estimated capacity, and wait times."
+              : "Plan your company headshot session — including budget range, recommended photographer stations, estimated capacity, and wait times."}
           </p>
         </header>
 
         {/* Step 1: Choose event type */}
         <section className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 p-4 sm:p-6">
-            <h2 className="text-base font-semibold text-slate-900">Step 1: What type of event are you planning?</h2>
+            <h2 className="text-base font-semibold text-slate-900">Step 1: Who are the headshots for?</h2>
           </div>
 
           <div className="grid gap-3 p-4 sm:p-6 sm:grid-cols-2">
@@ -469,7 +471,7 @@ export default function Page() {
                 boothType === "CONVENTION" ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:bg-slate-50"
               }`}
             >
-              <div className="text-sm font-semibold text-slate-900">Convention / Expo Booth</div>
+              <div className="text-sm font-semibold text-slate-900">Conference / Expo Booth</div>
               <div className="mt-1 text-sm text-slate-600">Headshots for attendees or sponsors — high-volume flow where wait times matter.</div>
             </button>
 
@@ -479,8 +481,8 @@ export default function Page() {
                 boothType === "COMPANY" ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:bg-slate-50"
               }`}
             >
-              <div className="text-sm font-semibold text-slate-900">Company Conference / Team Event</div>
-              <div className="mt-1 text-sm text-slate-600">Headshots for employees — often scheduled or planned to photograph everyone efficiently.</div>
+              <div className="text-sm font-semibold text-slate-900">Company Team Event</div>
+              <div className="mt-1 text-sm text-slate-600">Headshots for your employees — often scheduled so everyone can be photographed efficiently.</div>
             </button>
           </div>
         </section>
@@ -852,7 +854,7 @@ export default function Page() {
                         onClick={openEmailFormAndFocusFirstName}
                         className="mt-4 w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
                       >
-                        Send this estimate
+                        Email this estimate
                       </button>
                     )}
 
@@ -963,7 +965,7 @@ export default function Page() {
                     onClick={openEmailFormAndFocusFirstName}
                     className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800"
                   >
-                    Send this estimate
+                    Email this estimate
                   </button>
 
                   <a
