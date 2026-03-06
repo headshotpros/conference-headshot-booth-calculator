@@ -166,7 +166,7 @@ export default function Page() {
       setVolumeInputMode("HEADSHOTS"); // company default
       setExpectedHeadshots(40);
       setAttendees(200);
-      setParticipationRate(20);
+      setParticipationRate(60);
       setUseParticipationEstimate(false);
     }
 
@@ -714,7 +714,11 @@ export default function Page() {
                               onChange={(e) => setParticipationRate(clamp(parseInt(e.target.value || "25", 10), 1, 90))}
                               className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
                             />
-                            <p className="mt-1 text-xs text-slate-500">If you’re unsure, start with 20–30% and adjust.</p>
+                            <p className="mt-1 text-xs text-slate-500">
+  {boothType === "CONVENTION"
+    ? "If you’re unsure, start with 20–30% and adjust."
+    : "If you’re unsure, start with 60–80% for internal team events and adjust."}
+</p>
                           </div>
                         </>
                       )}
