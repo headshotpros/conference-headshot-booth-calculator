@@ -39,6 +39,12 @@ const DISCLAIMER_TEXT =
   "Travel may apply outside the Phoenix metro area. Venue parking fees or accommodations may apply depending on the location and event schedule. Arizona sales tax (8.3%) added where applicable.";
 
 /**
+ * Always-on "real world" buffer applied to capacity + wait-time calculations.
+ * This keeps estimates conservative (breaks, natural pacing variation, traffic bursts).
+ */
+const REAL_WORLD_BUFFER = 0.9; // 10% conservative buffer, always-on
+
+/**
  * Base pricing ranges (per day, 1 photographer station)
  * Half day (≤4 hours/day): $2,250–$2,700 (typical $2,500)
  * Full day (>4 up to 8/day): $3,500–$4,000 (typical $3,750)
@@ -148,7 +154,7 @@ export default function Page() {
     if (boothType === "CONVENTION") {
       setMode("TIME");
       setPace("HIGH");
-      setVolumeInputMode("ATTENDEES"); // ✅ convention default
+      setVolumeInputMode("ATTENDEES"); // convention default
       setParticipationRate(25);
       setAttendees(600);
       setExpectedHeadshots(120);
@@ -156,7 +162,7 @@ export default function Page() {
     } else {
       setMode("VOLUME");
       setPace("STANDARD");
-      setVolumeInputMode("HEADSHOTS"); // ✅ company default
+      setVolumeInputMode("HEADSHOTS"); // company default
       setExpectedHeadshots(40);
       setAttendees(200);
       setParticipationRate(20);
@@ -191,11 +197,12 @@ export default function Page() {
     return Math.max(1, Math.round(a * p));
   }, [useParticipationEstimate, volumeInputMode, expectedHeadshots, attendees, participationRate]);
 
-  // Recommended photographer stations (conservative)
+  // Recommended photographer stations (conservative) — uses REAL_WORLD_BUFFER
   const recommendedStations = useMemo(() => {
     if (!useParticipationEstimate || computedExpectedHeadshots == null) return 1;
 
-    const capacityPerStation = totalHours * paceMeta.conservativePerHour;
+    const bufferedThroughput = paceMeta.conservativePerHour * REAL_WORLD_BUFFER;
+    const capacityPerStation = totalHours * bufferedThroughput;
     const needed = Math.ceil(computedExpectedHeadshots / Math.max(1, capacityPerStation));
 
     if (needed <= 1) return 1;
@@ -214,13 +221,12 @@ export default function Page() {
     if (makeupArtists > makeupArtistsMax) setMakeupArtists(makeupArtistsMax as 1 | 2);
   }, [makeupArtists, makeupArtistsMax]);
 
-  // Capacity estimate range (display)
+  // Capacity estimate range (display) — uses REAL_WORLD_BUFFER
   const capacityRange = useMemo(() => {
     const [low, high] = paceMeta.perHourRange;
-    return {
-      low: Math.floor(totalHours * low * stations),
-      high: Math.floor(totalHours * high * stations)
-    };
+    const lowCap = Math.floor(totalHours * (low * REAL_WORLD_BUFFER) * stations);
+    const highCap = Math.floor(totalHours * (high * REAL_WORLD_BUFFER) * stations);
+    return { low: lowCap, high: highCap };
   }, [paceMeta, totalHours, stations]);
 
   // If demand exceeds capacity, we should not show misleading cost/headshot
@@ -259,7 +265,7 @@ export default function Page() {
     return { isCustom: false, low, mid, high, discount };
   }, [totalDays, perDayHours, isHalfDayPerDay, stations, addEnhancedRetouch, addMakeup, makeupArtists]);
 
-  // Wait time estimate (simple + honest)
+  // Wait time estimate (buffered)
   const waitTimeStatus = useMemo(() => {
     if (!useParticipationEstimate || computedExpectedHeadshots == null) return null;
 
@@ -426,21 +432,6 @@ export default function Page() {
     };
   }, [boothType]);
 
-  const nextSteps = useMemo(() => {
-    if (boothType === "CONVENTION") {
-      return [
-        "Email yourself the estimate to share internally.",
-        "Request a custom quote so we can confirm booth location, power/space needs, branding options, and event flow.",
-        "If you have sponsors, we can recommend a station count that keeps the line moving during peak times."
-      ];
-    }
-    return [
-      "Email yourself the estimate to share internally.",
-      "Request a custom quote so we can confirm schedule flow, staffing plan, and naming/scheduling needs.",
-      "If you want everyone photographed, we’ll confirm the best pacing + station count to hit your target."
-    ];
-  }, [boothType]);
-
   const canSendEmail = leadFirstName.trim().length > 0 && leadEmail.trim().includes("@");
 
   return (
@@ -581,18 +572,14 @@ export default function Page() {
 
                 <div className="mt-4 text-sm text-slate-600">
                   Total time: <span className="font-medium text-slate-900">{formatHoursToDaysHours(totalHours)}</span>
-                  {isMultiDay && totalDays >= 2 && (
-                    <span className="ml-2 text-xs text-slate-500">(multi-day pricing applied)</span>
-                  )}
+                  {isMultiDay && totalDays >= 2 && <span className="ml-2 text-xs text-slate-500">(multi-day pricing applied)</span>}
                 </div>
               </div>
 
               {/* Pace */}
               <div className="rounded-xl border border-slate-200 p-4">
                 <h2 className="text-base font-semibold text-slate-900">Headshot experience speed</h2>
-                <p className="mt-1 text-sm text-slate-600">
-                  Faster flow increases capacity. Slower pacing allows more coaching per person.
-                </p>
+                <p className="mt-1 text-sm text-slate-600">Faster flow increases capacity. Slower pacing allows more coaching per person.</p>
 
                 <div className="mt-4 grid gap-2">
                   {(["HIGH", "STANDARD", "PREFERRED"] as Pace[]).map((p) => {
@@ -798,9 +785,7 @@ export default function Page() {
                           <option value={1}>1 makeup artist</option>
                           {makeupArtistsMax === 2 && <option value={2}>2 makeup artists (one per station)</option>}
                         </select>
-                        <p className="text-xs text-slate-500">
-                          If you have 2 photographer stations and want maximum flow, a second makeup artist can reduce bottlenecks.
-                        </p>
+                        <p className="text-xs text-slate-500">If you have 2 photographer stations, a second makeup artist can reduce bottlenecks.</p>
                       </div>
                     )}
                   </div>
@@ -844,9 +829,7 @@ export default function Page() {
                       </div>
 
                       {pricing.discount > 0 && (
-                        <div className="mt-2 text-xs text-slate-500">
-                          Multi-day pricing applied ({Math.round(pricing.discount * 100)}% off per day).
-                        </div>
+                        <div className="mt-2 text-xs text-slate-500">Multi-day pricing applied ({Math.round(pricing.discount * 100)}% off per day).</div>
                       )}
                     </div>
 
@@ -893,7 +876,12 @@ export default function Page() {
                           </label>
 
                           <label className="flex items-center gap-2">
-                            <input type="radio" name="intent" checked={leadIntent === "ready_for_call"} onChange={() => setLeadIntent("ready_for_call")} />
+                            <input
+                              type="radio"
+                              name="intent"
+                              checked={leadIntent === "ready_for_call"}
+                              onChange={() => setLeadIntent("ready_for_call")}
+                            />
                             I’d like a quick planning call
                           </label>
                         </div>
@@ -983,7 +971,10 @@ export default function Page() {
 
                 <div className="mt-3 grid grid-cols-2 gap-3">
                   <Stat label="Estimated headshots possible" value={`${capacityRange.low}–${capacityRange.high}`} />
-                  <Stat label="Estimated headshots needed" value={useParticipationEstimate && computedExpectedHeadshots != null ? `${computedExpectedHeadshots}` : "Not provided"} />
+                  <Stat
+                    label="Estimated headshots needed"
+                    value={useParticipationEstimate && computedExpectedHeadshots != null ? `${computedExpectedHeadshots}` : "Not provided"}
+                  />
                 </div>
 
                 {demandExceedsCapacity && (
@@ -1002,6 +993,9 @@ export default function Page() {
                     <div>
                       <div className="text-sm font-semibold text-slate-900">{waitTimeCopy.title}</div>
                       <div className="text-sm text-slate-600">{waitTimeCopy.detail}</div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        Includes a conservative buffer for real-world pacing.
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1028,26 +1022,6 @@ export default function Page() {
                   <div className="text-sm font-semibold text-slate-900">{planningInsight.title}</div>
                   <div className="mt-1 text-sm text-slate-600">{planningInsight.body}</div>
                 </div>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 p-4 text-sm text-slate-600">
-                <div className="font-medium text-slate-900">What to do next</div>
-                <ul className="mt-2 list-disc space-y-1 pl-5">
-                  {(boothType === "CONVENTION"
-                    ? [
-                        "Email yourself the estimate to share internally.",
-                        "Request a custom quote so we can confirm booth location, power/space needs, branding options, and event flow.",
-                        "If you have sponsors, we can recommend a station count that keeps the line moving during peak times."
-                      ]
-                    : [
-                        "Email yourself the estimate to share internally.",
-                        "Request a custom quote so we can confirm schedule flow, staffing plan, and naming/scheduling needs.",
-                        "If you want everyone photographed, we’ll confirm the best pacing + station count to hit your target."
-                      ]
-                  ).map((s) => (
-                    <li key={s}>{s}</li>
-                  ))}
-                </ul>
               </div>
             </div>
           </div>
