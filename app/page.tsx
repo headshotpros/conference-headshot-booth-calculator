@@ -673,10 +673,10 @@ export default function Page() {
                         </button>
                       </div>
                       <p className="mt-2 text-xs text-slate-500">
-                        {boothType === "CONVENTION"
-                          ? "Total attendees = everyone at the event. We’ll estimate headshots using a participation percentage."
-                          : "People who want headshots = how many team members you want photographed."}
-                      </p>
+  {volumeInputMode === "HEADSHOTS"
+    ? "People who want headshots = how many people you want photographed."
+    : "Total attendees = everyone at the event. We’ll estimate headshots using a participation percentage."}
+</p>
                     </div>
 
                     <div className="mt-4 grid gap-4 sm:grid-cols-2">
