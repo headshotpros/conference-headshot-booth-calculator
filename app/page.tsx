@@ -705,15 +705,18 @@ export default function Page() {
                             />
                           </div>
                           <div>
-                            <label className="text-sm font-medium text-slate-700">Estimated participation</label>
-                            <input
-                              type="number"
-                              min={1}
-                              max={90}
-                              value={participationRate}
-                              onChange={(e) => setParticipationRate(clamp(parseInt(e.target.value || "25", 10), 1, 90))}
-                              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
-                            />
+                            <label className="text-sm font-medium text-slate-700">Expected participation (%)</label>
+                            <div className="relative">
+  <input
+    type="number"
+    value={participationRate}
+    onChange={(e) => setParticipationRate(Number(e.target.value))}
+    className="w-full rounded-lg border border-slate-300 px-3 py-2 pr-8"
+  />
+  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">
+    %
+  </span>
+</div>
                             <p className="mt-1 text-xs text-slate-500">
   {boothType === "CONVENTION"
     ? "If you’re unsure, start with 20–30% and adjust."
