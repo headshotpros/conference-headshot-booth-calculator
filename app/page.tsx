@@ -469,7 +469,7 @@ export default function Page() {
         {/* Step 1: Choose event type */}
         <section className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 p-4 sm:p-6">
-            <h2 className="text-base font-semibold text-slate-900">Step 1: Who are the headshots for?</h2>
+            <h2 className="text-base font-semibold text-slate-900">Who are the headshots for?</h2>
           </div>
 
           <div className="grid gap-3 p-4 sm:p-6 sm:grid-cols-2">
@@ -648,7 +648,7 @@ Enter the number of people who want headshots, or use total attendees to estimat
                       checked={useParticipationEstimate}
                       onChange={(e) => setUseParticipationEstimate(e.target.checked)}
                     />
-                    Use estimate
+                    Turn on estimate
                   </label>
                 </div>
 
@@ -720,7 +720,7 @@ Enter the number of people who want headshots, or use total attendees to estimat
 </div>
                             <p className="mt-1 text-xs text-slate-500">
   {boothType === "CONVENTION"
-    ? "If you’re unsure, start with 20–30% and adjust."
+    ? "If you’re unsure, start with 10–30% and adjust."
     : "If you’re unsure, start with 60–80% for internal team events and adjust."}
 </p>
                           </div>
