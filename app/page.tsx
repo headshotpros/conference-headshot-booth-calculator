@@ -168,6 +168,7 @@ export default function Page() {
       setAttendees(200);
       setParticipationRate(60);
       setUseParticipationEstimate(false);
+      setAddEnhancedRetouch(true);
     }
 
     setShowEmailForm(false);
