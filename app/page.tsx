@@ -1082,7 +1082,7 @@ Enter the number of people who want headshots, or use total attendees to estimat
                 </div>
 
                 <div className="mt-3 grid grid-cols-2 gap-3">
-                  <Stat label="Estimated coverage" value={`${capacityRange.low}–${capacityRange.high} attendees`} />
+                  <Stat label="Estimated capacity" value={`${capacityRange.low}–${capacityRange.high} attendees`} />
                   <Stat
                     label="Estimated headshots needed"
                     value={useParticipationEstimate && computedExpectedHeadshots != null ? `${computedExpectedHeadshots}` : "Not provided"}
