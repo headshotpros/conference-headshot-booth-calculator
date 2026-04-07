@@ -152,7 +152,6 @@ export default function Page() {
 
   // When booth type changes, set sensible defaults (and default input mode!)
   useEffect(() => {
-    useEffect(() => {
   if (boothType === "CONVENTION") {
     setMode("TIME");
     setPace("HIGH");
