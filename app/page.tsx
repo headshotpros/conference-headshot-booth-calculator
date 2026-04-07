@@ -100,7 +100,7 @@ const PACE = {
 
 export default function Page() {
   // Step 1: event type
-  const [boothType, setBoothType] = useState<BoothType>("CONVENTION");
+  const [boothType, setBoothType] = useState<BoothType>("COMPANY");
 
   // Top toggle: do they know time or volume first?
   const [mode, setMode] = useState<Mode>("TIME");
@@ -152,30 +152,32 @@ export default function Page() {
 
   // When booth type changes, set sensible defaults (and default input mode!)
   useEffect(() => {
-    if (boothType === "CONVENTION") {
-      setMode("TIME");
-      setPace("HIGH");
-      setVolumeInputMode("ATTENDEES"); // convention default
-      setParticipationRate(25);
-      setAttendees(600);
-      setExpectedHeadshots(120);
-      setUseParticipationEstimate(false);
-    } else {
-      setMode("VOLUME");
-      setPace("STANDARD");
-      setVolumeInputMode("HEADSHOTS"); // company default
-      setExpectedHeadshots(40);
-      setAttendees(200);
-      setParticipationRate(60);
-      setUseParticipationEstimate(false);
-      setAddEnhancedRetouch(true);
-    }
+    useEffect(() => {
+  if (boothType === "CONVENTION") {
+    setMode("TIME");
+    setPace("HIGH");
+    setVolumeInputMode("ATTENDEES"); // convention default
+    setParticipationRate(25);
+    setAttendees(600);
+    setExpectedHeadshots(120);
+    setUseParticipationEstimate(false);
+    setAddEnhancedRetouch(false);
+  } else {
+    setMode("VOLUME");
+    setPace("STANDARD");
+    setVolumeInputMode("HEADSHOTS"); // company default
+    setExpectedHeadshots(40);
+    setAttendees(200);
+    setParticipationRate(60);
+    setUseParticipationEstimate(false);
+    setAddEnhancedRetouch(true);
+  }
 
-    setShowEmailForm(false);
-    setSentOk(false);
-    setSendError(null);
-    setEventTimeline("");
-  }, [boothType]);
+  setShowEmailForm(false);
+  setSentOk(false);
+  setSendError(null);
+  setEventTimeline("");
+}, [boothType]);
 
   // Derived: total hours
   const totalHours = useMemo(() => {
@@ -475,16 +477,6 @@ export default function Page() {
 
           <div className="grid gap-3 p-4 sm:p-6 sm:grid-cols-2">
             <button
-              onClick={() => setBoothType("CONVENTION")}
-              className={`rounded-2xl border p-4 text-left transition ${
-                boothType === "CONVENTION" ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:bg-slate-50"
-              }`}
-            >
-              <div className="text-sm font-semibold text-slate-900">Conference / Expo Booth</div>
-              <div className="mt-1 text-sm text-slate-600">Headshots for attendees or sponsors — high-volume flow where wait times matter.</div>
-            </button>
-
-            <button
               onClick={() => setBoothType("COMPANY")}
               className={`rounded-2xl border p-4 text-left transition ${
                 boothType === "COMPANY" ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:bg-slate-50"
@@ -493,6 +485,15 @@ export default function Page() {
               <div className="text-sm font-semibold text-slate-900">Company Team Event</div>
               <div className="mt-1 text-sm text-slate-600">Headshots for your employees — when you're photographing your team all in one place.</div>
             </button>
+            <button
+              onClick={() => setBoothType("CONVENTION")}
+              className={`rounded-2xl border p-4 text-left transition ${
+                boothType === "CONVENTION" ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              <div className="text-sm font-semibold text-slate-900">Conference / Expo Booth</div>
+              <div className="mt-1 text-sm text-slate-600">Headshots for attendees or sponsors — high-volume flow where wait times matter.</div>
+            </button>            
           </div>
         </section>
 
