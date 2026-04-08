@@ -599,36 +599,6 @@ export default function Page() {
                 </div>
               </div>
 
-              {/* Pace */}
-              <div className="rounded-xl border border-slate-200 p-4">
-                <h2 className="text-base font-semibold text-slate-900">Headshot experience speed</h2>
-                <p className="mt-1 text-sm text-slate-600">Faster flow increases capacity. Slower pacing allows more coaching per person.</p>
-
-                <div className="mt-4 grid gap-2">
-                  {(["HIGH", "STANDARD", "PREFERRED"] as Pace[]).map((p) => {
-                    const meta = PACE[p];
-                    const isActive = pace === p;
-                    return (
-                      <button
-                        key={p}
-                        onClick={() => setPace(p)}
-                        className={`flex items-center justify-between rounded-xl border px-3 py-3 text-left ${
-                          isActive ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:bg-slate-50"
-                        }`}
-                      >
-                        <div>
-                          <div className="text-sm font-semibold text-slate-900">{meta.label}</div>
-                          <div className="text-xs text-slate-600">
-                            {meta.minutesRange[0]}–{meta.minutesRange[1]} minutes per person • ~{meta.perHourRange[0]}–{meta.perHourRange[1]} per hour per station
-                          </div>
-                        </div>
-                        <div className={`h-4 w-4 rounded-full border ${isActive ? "border-slate-900 bg-slate-900" : "border-slate-300"}`} />
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
               {/* Participation / demand */}
               <div ref={participationSectionRef} className="rounded-xl border border-slate-200 p-4">
                 <div className="flex items-start justify-between gap-3">
@@ -760,6 +730,37 @@ Enter the number of people who want headshots, or use total attendees to estimat
                   </div>
                 )}
               </div>
+              {/* Pace */}
+              <div className="rounded-xl border border-slate-200 p-4">
+                <h2 className="text-base font-semibold text-slate-900">Headshot experience speed</h2>
+                <p className="mt-1 text-sm text-slate-600">Faster flow increases capacity. Slower pacing allows more coaching per person.</p>
+
+                <div className="mt-4 grid gap-2">
+                  {(["HIGH", "STANDARD", "PREFERRED"] as Pace[]).map((p) => {
+                    const meta = PACE[p];
+                    const isActive = pace === p;
+                    return (
+                      <button
+                        key={p}
+                        onClick={() => setPace(p)}
+                        className={`flex items-center justify-between rounded-xl border px-3 py-3 text-left ${
+                          isActive ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:bg-slate-50"
+                        }`}
+                      >
+                        <div>
+                          <div className="text-sm font-semibold text-slate-900">{meta.label}</div>
+                          <div className="text-xs text-slate-600">
+                            {meta.minutesRange[0]}–{meta.minutesRange[1]} minutes per person • ~{meta.perHourRange[0]}–{meta.perHourRange[1]} per hour per station
+                          </div>
+                        </div>
+                        <div className={`h-4 w-4 rounded-full border ${isActive ? "border-slate-900 bg-slate-900" : "border-slate-300"}`} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              
 
               {/* Photographer stations */}
               <div className="rounded-xl border border-slate-200 p-4">
