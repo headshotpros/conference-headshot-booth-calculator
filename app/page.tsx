@@ -1127,7 +1127,7 @@ Enter the number of people who want headshots, or use total attendees to estimat
     </p>
 )}
 </div>
-                  <Stat label="Pacing" value={paceMeta.label} />
+                  <Stat label="Session Speed" value={paceMeta.label} />
                 </div>
 
                 <div className="mt-3 grid grid-cols-2 gap-3">
