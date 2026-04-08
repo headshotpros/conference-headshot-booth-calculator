@@ -769,7 +769,7 @@ Enter the number of people who want headshots, or use total attendees to estimat
               {/* Photographer stations */}
               <div className="rounded-xl border border-slate-200 p-4">
                 <h2 className="text-base font-semibold text-slate-900">Photographer stations</h2>
-                <p className="mt-1 text-sm text-slate-600">A “station” is one photographer + one lighting setup.</p>
+                <p className="mt-1 text-sm text-slate-600">A “station” is one photographer with a full lighting setup — each station photographs one person at a time.</p>
 
                 <div className="mt-3 flex items-center justify-between gap-3">
                   <label className="inline-flex items-center gap-2 text-sm text-slate-700">
@@ -1083,7 +1083,33 @@ Enter the number of people who want headshots, or use total attendees to estimat
                 <h2 className="text-base font-semibold text-slate-900">Suggested headshot booth setup</h2>
 
                 <div className="mt-3 grid grid-cols-2 gap-3">
-                  <Stat label="Recommended photographer stations" value={stationsLabel} />
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+  <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
+    {autoStations ? "Recommended photographer stations" : "Photographer stations selected"}
+  </div>
+
+  <div className="mt-1 text-2xl font-semibold text-slate-900">
+    {stations} {stations === 1 ? "station" : "stations"}
+  </div>
+
+  <p className="mt-1 text-xs text-slate-500">
+    {autoStations
+      ? recommendedStations === 1
+        ? "Covers your expected headcount within your time window."
+        : "Helps reduce wait times and keep lines moving smoothly."
+      : "Manually selected. Wait times and capacity will update based on your choice."}
+  </p>
+
+  {autoStations &&
+    useParticipationEstimate &&
+    computedExpectedHeadshots != null &&
+    recommendedStations === 1 &&
+    computedExpectedHeadshots > Math.floor(capacityRange.low * 0.85) && (
+      <p className="mt-2 text-xs text-amber-600">
+        You’re close to the upper end of one station. A second station could help keep lines shorter during busy periods.
+      </p>
+    )}
+</div>
                   <Stat label="Pacing" value={paceMeta.label} />
                 </div>
 
