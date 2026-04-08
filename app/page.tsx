@@ -1123,6 +1123,7 @@ Enter the number of people who want headshots, or use total attendees to estimat
       You’re close to the upper end of this setup. Adding time, an additional station, or choosing a quicker headshot experience could help keep lines shorter during busy periods.
     </p>
 )}
+</div>
                   <Stat label="Pacing" value={paceMeta.label} />
                 </div>
 
