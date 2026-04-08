@@ -116,6 +116,9 @@ export async function POST(req: Request) {
           If you'd like, I can help refine the setup based on your event schedule and attendee flow.
         </p>
 
+<p style="margin:0 0 12px 0;">
+  Most of our work is in the Phoenix area, and we’d love to help if your event is local.
+</p>
         <p style="margin:0 0 16px 0;">
           <strong>Does this look close to what you're planning, or would you like help refining the setup?</strong><br />
           Just reply and tell me a little about your event.
