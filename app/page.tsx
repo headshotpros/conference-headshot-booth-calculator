@@ -448,7 +448,10 @@ const overageRatio =
     ];
   }, [boothType]);
 
-  const title = boothType === "CONVENTION" ? "Conference Headshot Booth Cost Calculator" : "Company Conference Headshot Cost Calculator";
+  const title =
+  boothType === "CONVENTION"
+    ? "Conference Headshot Booth Planning Tool"
+    : "Company Headshot Planning Tool";
 
   const planningInsight = useMemo(() => {
     if (boothType === "CONVENTION") {
