@@ -203,17 +203,22 @@ export default function Page() {
 
   // Recommended photographer stations
   const recommendedStations = useMemo(() => {
-    if (!useParticipationEstimate || computedExpectedHeadshots == null) return 1;
+  if (!useParticipationEstimate || computedExpectedHeadshots == null) return 1;
 
-    const bufferedThroughput = paceMeta.conservativePerHour;
-    const capacityPerStation = totalHours * bufferedThroughput;
-    const needed = Math.ceil(computedExpectedHeadshots / Math.max(1, capacityPerStation));
+  const bufferedThroughput = paceMeta.conservativePerHour;
+  const capacityPerStation = totalHours * bufferedThroughput;
 
-    if (needed <= 1) return 1;
-    if (needed === 2) return 2;
-    return 3; // 3+ signals multi-station team
-  }, [useParticipationEstimate, computedExpectedHeadshots, totalHours, paceMeta]);
+  // Small grace factor so we don’t jump to an extra station
+  // when the estimate is only slightly over the conservative threshold.
+  const recommendationGrace = 1.1; // 10%
 
+  const adjustedCapacityPerStation = capacityPerStation * recommendationGrace;
+  const needed = Math.ceil(computedExpectedHeadshots / Math.max(1, adjustedCapacityPerStation));
+
+  if (needed <= 1) return 1;
+  if (needed === 2) return 2;
+  return 3;
+}, [useParticipationEstimate, computedExpectedHeadshots, totalHours, paceMeta]);
   const recommendedStationsLabel = useMemo(() => {
     return recommendedStations >= 3 ? "3+" : `${recommendedStations}`;
   }, [recommendedStations]);
