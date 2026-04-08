@@ -1115,16 +1115,14 @@ Enter the number of people who want headshots, or use total attendees to estimat
       : "Manually selected. Wait times and capacity will update based on your choice."}
   </p>
 
-  {autoStations &&
-    useParticipationEstimate &&
-    computedExpectedHeadshots != null &&
-    recommendedStations === 1 &&
-    computedExpectedHeadshots > Math.floor(capacityRange.low * 0.85) && (
-      <p className="mt-2 text-xs text-amber-600">
-        You’re close to the upper end of one station. A second station could help keep lines shorter during busy periods.
-      </p>
-    )}
-</div>
+{useParticipationEstimate &&
+  computedExpectedHeadshots != null &&
+  computedExpectedHeadshots <= capacityRange.high &&
+  computedExpectedHeadshots > Math.floor(capacityRange.low * 0.85) && (
+    <p className="mt-2 text-xs text-amber-600">
+      You’re close to the upper end of this setup. Adding time, an additional station, or choosing a quicker headshot experience could help keep lines shorter during busy periods.
+    </p>
+)}
                   <Stat label="Pacing" value={paceMeta.label} />
                 </div>
 
