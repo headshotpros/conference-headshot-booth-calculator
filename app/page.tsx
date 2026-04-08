@@ -247,6 +247,12 @@ export default function Page() {
     return computedExpectedHeadshots > capacityRange.high;
   }, [useParticipationEstimate, computedExpectedHeadshots, capacityRange.high]);
 
+  // Trigger for just over capacity vs really over capacity
+const overageRatio =
+  computedExpectedHeadshots && capacityRange.high
+    ? computedExpectedHeadshots / capacityRange.high
+    : 0;
+
   // Pricing: base range + add-ons + multiday discount
   const pricing = useMemo(() => {
     if (totalDays > 5 || perDayHours > 8) return { isCustom: true, low: 0, mid: 0, high: 0, discount: 0 };
@@ -1126,32 +1132,27 @@ Enter the number of people who want headshots, or use total attendees to estimat
                 </div>
 
                 {demandExceedsCapacity && (
-                  <div className="mt-3 rounded-lg border border-rose-200 bg-white p-3 text-sm text-slate-700">
-                    <div className="font-semibold text-slate-900">Heads up: The number of headshots needed exceed estimated capacity.</div>
-                    <div className="mt-1 text-slate-600">
-                      To photograph everyone, consider adding a photographer station, extending hours, or choosing a faster experience option.
-                    </div>
-                  </div>
-                )}
+  <div
+    className={`mt-3 rounded-lg border p-3 text-sm text-slate-700
+      ${
+        overageRatio <= 1.15
+          ? "border-amber-300 border-l-4 border-l-amber-400 bg-amber-50"
+          : "border-rose-300 border-l-4 border-l-rose-400 bg-rose-50"
+      }`}
+  >
+    <div className="font-semibold text-slate-900">
+      {overageRatio <= 1.15
+        ? "Heads up: your current setup may be tight for this headcount."
+        : "Heads up: your current setup likely won’t cover everyone in time."}
+    </div>
 
-                <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
-                  <div className="text-sm font-semibold text-slate-900">Capacity note</div>
-                  <div className="mt-1 text-sm text-slate-600">Estimated capacity assumes a steady flow of attendees during the session.</div>
-                  <div className="mt-1 text-sm text-slate-600">Actual numbers may vary depending on participation and booth traffic.</div>
-                </div>
-
-                <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
-                  <div className="text-sm font-semibold text-slate-900">Wait Time Estimate</div>
-                  <div className="mt-1 flex items-start gap-2">
-                    <Badge status={waitTimeStatus} />
-                    <div>
-                      <div className="text-sm font-semibold text-slate-900">{waitTimeCopy.title}</div>
-                      <div className="text-sm text-slate-600">{waitTimeCopy.detail}</div>
-                      <div className="mt-1 text-xs text-slate-500">Includes a conservative buffer for real-world pacing.</div>
-                    </div>
-                  </div>
-                </div>
-
+    <div className="mt-1 text-slate-600">
+      {overageRatio <= 1.15
+        ? "To photograph everyone comfortably, you could add a photographer station, extend time, or choose a quicker headshot experience."
+        : "To photograph everyone comfortably, you’ll likely need to add a photographer station, extend time, or choose a quicker headshot experience."}
+    </div>
+  </div>
+)}
                 <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
                   <div className="text-sm font-semibold text-slate-900">Estimated cost per headshot</div>
                   {costPerHeadshot ? (
