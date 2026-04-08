@@ -1129,7 +1129,7 @@ Enter the number of people who want headshots, or use total attendees to estimat
                   <div className="mt-3 rounded-lg border border-rose-200 bg-white p-3 text-sm text-slate-700">
                     <div className="font-semibold text-slate-900">Heads up: The number of headshots needed exceed estimated capacity.</div>
                     <div className="mt-1 text-slate-600">
-                      To photograph everyone, consider adding a photographer station, extending hours, or choosing a quicker experience option.
+                      To photograph everyone, consider adding a photographer station, extending hours, or choosing a faster experience option.
                     </div>
                   </div>
                 )}
