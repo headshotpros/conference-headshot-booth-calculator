@@ -421,7 +421,7 @@ export default function Page() {
     if (boothType === "CONVENTION") {
       return [
         "On-site headshot booth setup (backdrop + lighting)",
-        "High-volume headshot workflow with quick posing and expression guidance",
+        "High-volume headshot workflow with quick, guided posing and natural expression coaching",
         "Instant delivery via email with individual gallery links",
         "Optional lead capture + participant list export (CSV)",
         "Optional sponsor or company branding added to galleries and delivery pages"
@@ -610,6 +610,9 @@ export default function Page() {
                       Turn this on to estimate photographer stations and wait times.
 Enter the number of people who want headshots, or use total attendees to estimate participation.
 </p>
+<p className="mt-2 text-xs text-slate-500">
+  We’ll use this to recommend the best headshot experience speed and number of photographer stations for your event.
+</p>
                   </div>
 
                   <label className="inline-flex items-center gap-2 text-sm text-slate-700">
@@ -733,7 +736,8 @@ Enter the number of people who want headshots, or use total attendees to estimat
               {/* Pace */}
               <div className="rounded-xl border border-slate-200 p-4">
                 <h2 className="text-base font-semibold text-slate-900">Headshot experience speed</h2>
-                <p className="mt-1 text-sm text-slate-600">Faster flow increases capacity. Slower pacing allows more coaching per person.</p>
+                <p className="mt-1 text-sm text-slate-600">Faster sessions increase capacity. Slower sessions allow more time in front of the camera for expression coaching to get the right shot.
+</p>
 
                 <div className="mt-4 grid gap-2">
                   {(["HIGH", "STANDARD", "PREFERRED"] as Pace[]).map((p) => {
