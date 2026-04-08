@@ -450,7 +450,7 @@ export default function Page() {
     return {
       title: "ROI planning insight (for company conferences)",
       body:
-        "Team headshots reduce friction (no individual scheduling) and create consistent, professional images across leadership and staff. A great experience also helps employees feel valued and confident — which shows up in the photos and in how they represent the company afterward."
+        "Team headshots reduce friction by making it easy to photograph employees together, rather than sending everyone off for separate appointments. They also create consistent, professional images across leadership and staff. A great experience helps employees feel valued and confident — which shows up in the photos and in how they represent the company afterward."
     };
   }, [boothType]);
 
@@ -1127,9 +1127,9 @@ Enter the number of people who want headshots, or use total attendees to estimat
 
                 {demandExceedsCapacity && (
                   <div className="mt-3 rounded-lg border border-rose-200 bg-white p-3 text-sm text-slate-700">
-                    <div className="font-semibold text-slate-900">Heads up: your headshots needed exceed estimated capacity.</div>
+                    <div className="font-semibold text-slate-900">Heads up: The number of headshots needed exceed estimated capacity.</div>
                     <div className="mt-1 text-slate-600">
-                      To photograph everyone, consider adding a photographer station, extending hours, or choosing a faster pacing option.
+                      To photograph everyone, consider adding a photographer station, extending hours, or choosing a quicker experience option.
                     </div>
                   </div>
                 )}
