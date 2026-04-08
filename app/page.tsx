@@ -770,7 +770,11 @@ Enter the number of people who want headshots, or use total attendees to estimat
               <div className="rounded-xl border border-slate-200 p-4">
                 <h2 className="text-base font-semibold text-slate-900">Photographer stations</h2>
                 <p className="mt-1 text-sm text-slate-600">A “station” is one photographer with a full lighting setup — each station photographs one person at a time.</p>
-
+{boothType === "COMPANY" && (
+  <p className="mt-2 text-xs text-slate-500">
+    We can also schedule time slots for teams to keep things running smoothly.
+  </p>
+)}
                 <div className="mt-3 flex items-center justify-between gap-3">
                   <label className="inline-flex items-center gap-2 text-sm text-slate-700">
                     <input
