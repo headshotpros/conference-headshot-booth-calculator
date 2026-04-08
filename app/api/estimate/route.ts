@@ -93,30 +93,32 @@ export async function POST(req: Request) {
 
     // 🚀 Add to Mailercloud (non-blocking)
     try {
-      const mcRes = await fetch(
-        "https://api.mailercloud.com/v1/subscribers",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${mailercloudKey}`,
-          },
-          body: JSON.stringify({
-            email: body.email,
-            name: firstName,
-            list_id: listId,
-            resubscribe: true,
-          }),
-        }
-      );
+  const mcPayload = {
+    email: body.email,
+    name: firstName,
+    list_id: listId,
+    resubscribe: true,
+  };
 
-      if (!mcRes.ok) {
-        const text = await mcRes.text();
-        console.error("Mailercloud error:", mcRes.status, text);
-      }
-    } catch (err) {
-      console.error("Mailercloud request failed:", err);
-    }
+  const mcRes = await fetch("https://api.mailercloud.com/v1/subscribers", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${mailercloudKey}`,
+    },
+    body: JSON.stringify(mcPayload),
+  });
+
+  const mcText = await mcRes.text();
+  console.log("Mailercloud status:", mcRes.status);
+  console.log("Mailercloud response:", mcText);
+
+  if (!mcRes.ok) {
+    console.error("Mailercloud error payload:", mcPayload);
+  }
+} catch (err) {
+  console.error("Mailercloud request failed:", err);
+}
 
     // 📧 Subject line
     const subject =
