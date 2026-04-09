@@ -1,4 +1,12 @@
-console.error("🔥 ROUTE HIT v3");
+console.error("🔥 ROUTE HIT v4");
+
+console.error("ENV CHECK", {
+  resendKey: !!resendKey,
+  mailercloudKey: !!mailercloudKey,
+  from: !!from,
+  notify: !!notify,
+});
+
 import { Resend } from "resend";
 
 type Payload = {
@@ -124,6 +132,14 @@ try {
 } catch (err) {
   console.error("Mailercloud request failed:", err);
 }
+console.error("Mailercloud starting");
+console.error("Mailercloud boothType:", body.boothType);
+console.error("Mailercloud listId:", listId);
+console.error("Mailercloud payload:", JSON.stringify(mcPayload));
+console.error("Mailercloud status:", mcRes.status);
+console.error("Mailercloud ok:", mcRes.ok);
+console.error("Mailercloud response:", mcText);
+    
     // 📧 Subject line
     const subject =
       body.boothType === "COMPANY"
@@ -195,7 +211,15 @@ try {
       html: leadHtml,
     });
 
-    return Response.json({ success: true });
+return Response.json({
+  success: true,
+  debug: {
+    routeVersion: "v4",
+    boothType: body.boothType,
+    listId,
+  },
+});
+    
   } catch (err) {
     console.error(err);
     return Response.json(
