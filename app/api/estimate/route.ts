@@ -89,7 +89,9 @@ export async function POST(req: Request) {
 
     // 🎯 Mailercloud list selection
     const listId =
-      body.boothType === "CONVENTION" ? "fhJHXa" : "DxZwHG";
+  body.boothType === "CONVENTION"
+    ? "fHZHHa"
+    : "uHZwHw";
 
     // 🚀 Add to Mailercloud (non-blocking)
     try {
