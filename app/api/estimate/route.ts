@@ -1,3 +1,4 @@
+console.error("🔥 ROUTE HIT v3");
 import { Resend } from "resend";
 
 type Payload = {
