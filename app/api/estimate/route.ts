@@ -1,4 +1,4 @@
-console.log("🔥 ROUTE HIT v2");
+throw new Error("TEST ROUTE HIT");
 import { Resend } from "resend";
 
 type Payload = {
