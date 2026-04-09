@@ -87,11 +87,13 @@ export async function POST(req: Request) {
     const eventType = boothTypeLabel(body.boothType);
     const timeline = body.timeline?.trim() || "";
 
-   // 🎯 Mailercloud list selection
-const listId =
-  body.boothType === "CONVENTION"
-    ? "fHZHHa"
-    : "uHZwHw";
+// 🎯 Mailercloud list selection
+const listId = body.boothType === "CONVENTION" ? "fHZHHa" : "uHZwHw";
+
+console.log("Mailercloud starting...");
+console.log("Mailercloud key exists:", !!mailercloudKey);
+console.log("Mailercloud boothType:", body.boothType);
+console.log("Mailercloud listId:", listId);
 
 // 🚀 Add to Mailercloud (non-blocking)
 try {
