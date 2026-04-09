@@ -101,33 +101,38 @@ export async function POST(req: Request) {
     console.error("Mailercloud boothType:", body.boothType);
     console.error("Mailercloud listId:", listId);
 
-    try {
-      const mcPayload = {
-        email: body.email,
-        name: firstName,
-        list_id: listId,
-        resubscribe: true,
-      };
+    let mailercloudDebug: any = null;
 
-      console.error("Mailercloud payload:", JSON.stringify(mcPayload));
+try {
+  const mcPayload = {
+    email: body.email,
+    name: firstName,
+    list_id: listId,
+    resubscribe: true,
+  };
 
-      const mcRes = await fetch("https://cloudapi.mailercloud.com/v1/contacts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: mailercloudKey,
-        },
-        body: JSON.stringify(mcPayload),
-      });
+  const mcRes = await fetch("https://cloudapi.mailercloud.com/v1/contacts", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: mailercloudKey,
+    },
+    body: JSON.stringify(mcPayload),
+  });
 
-      const mcText = await mcRes.text();
+  const mcText = await mcRes.text();
 
-      console.error("Mailercloud status:", mcRes.status);
-      console.error("Mailercloud ok:", mcRes.ok);
-      console.error("Mailercloud response:", mcText);
-    } catch (err) {
-      console.error("Mailercloud request failed:", err);
-    }
+  mailercloudDebug = {
+    status: mcRes.status,
+    ok: mcRes.ok,
+    payload: mcPayload,
+    response: mcText,
+  };
+} catch (err: any) {
+  mailercloudDebug = {
+    error: err?.message || "Mailercloud request failed",
+  };
+}
 
     const subject =
       body.boothType === "COMPANY"
@@ -198,13 +203,14 @@ export async function POST(req: Request) {
     });
 
     return Response.json({
-      success: true,
-      debug: {
-        routeVersion: "v4",
-        boothType: body.boothType,
-        listId,
-      },
-    });
+  success: true,
+  debug: {
+    routeVersion: "v4",
+    boothType: body.boothType,
+    listId,
+    mailercloud: mailercloudDebug,
+  },
+});
   } catch (err) {
     console.error(err);
     return Response.json(
