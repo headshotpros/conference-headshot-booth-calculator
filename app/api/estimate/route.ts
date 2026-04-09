@@ -205,7 +205,7 @@ try {
     return Response.json({
   success: true,
   debug: {
-    routeVersion: "v4",
+    routeVersion: "v5",
     boothType: body.boothType,
     listId,
     mailercloud: mailercloudDebug,
