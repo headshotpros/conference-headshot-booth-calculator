@@ -98,7 +98,7 @@ export async function POST(req: Request) {
   const mcPayload = {
     email: body.email,
     name: firstName,
-    list_id: listId,
+    listId: listId
     resubscribe: true,
   };
 
