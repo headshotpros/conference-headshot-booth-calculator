@@ -87,18 +87,18 @@ export async function POST(req: Request) {
     const eventType = boothTypeLabel(body.boothType);
     const timeline = body.timeline?.trim() || "";
 
-    // 🎯 Mailercloud list selection
-    const listId =
+   // 🎯 Mailercloud list selection
+const listId =
   body.boothType === "CONVENTION"
     ? "fHZHHa"
     : "uHZwHw";
 
-    // 🚀 Add to Mailercloud (non-blocking)
-    try {
+// 🚀 Add to Mailercloud (non-blocking)
+try {
   const mcPayload = {
     email: body.email,
     name: firstName,
-    listId: listId
+    listId: listId,
     resubscribe: true,
   };
 
