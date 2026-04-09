@@ -108,7 +108,6 @@ try {
     email: body.email,
     name: firstName,
     list_id: listId,
-    resubscribe: true,
   };
 
   const mcRes = await fetch("https://cloudapi.mailercloud.com/v1/contacts", {
