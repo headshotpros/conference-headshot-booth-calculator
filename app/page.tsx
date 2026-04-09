@@ -418,9 +418,14 @@ const overageRatio =
       });
 
       const out = await res.json();
-      if (!res.ok) throw new Error(out?.error || "Failed to send estimate");
+console.log("API response:", out);
 
-      setSentOk(true);
+if (!res.ok) throw new Error(out?.error || "Failed to send estimate");
+
+// TEMP DEBUG
+alert(JSON.stringify(out, null, 2));
+
+setSentOk(true);
     } catch (e: any) {
       setSendError(e?.message || "Failed to send estimate");
     } finally {
