@@ -102,7 +102,7 @@ export async function POST(req: Request) {
     resubscribe: true,
   };
 
-  console.log("Mailercloud payload:", mcPayload);
+  console.log("Mailercloud payload:", JSON.stringify(mcPayload));
 
   const mcRes = await fetch("https://cloudapi.mailercloud.com/v1/contacts", {
     method: "POST",
@@ -116,15 +116,11 @@ export async function POST(req: Request) {
   const mcText = await mcRes.text();
 
   console.log("Mailercloud status:", mcRes.status);
+  console.log("Mailercloud ok:", mcRes.ok);
   console.log("Mailercloud response:", mcText);
-
-  if (!mcRes.ok) {
-    console.error("Mailercloud request failed");
-  }
 } catch (err) {
-  console.error("Mailercloud fetch failed:", err);
+  console.error("Mailercloud request failed:", err);
 }
-
     // 📧 Subject line
     const subject =
       body.boothType === "COMPANY"
