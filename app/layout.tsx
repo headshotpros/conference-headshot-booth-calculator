@@ -2,7 +2,11 @@ import "./globals.css";
 
 export const metadata = {
   title: "Conference Headshot Booth Cost Calculator",
-  description: "Estimate budget, recommended stations, and capacity for your event headshot booth."
+  description: "Estimate budget, recommended stations, and capacity for your event headshot booth.",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
