@@ -95,8 +95,8 @@ export async function POST(req: Request) {
     const eventType = boothTypeLabel(body.boothType);
     const timeline = body.timeline?.trim() || "";
 
-    const listId =
-  boothType === "CONVENTION"
+const listId =
+  body.boothType === "CONVENTION"
     ? "fHZHHa"
     : "fyKHKy";
 
