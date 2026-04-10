@@ -57,14 +57,6 @@ export async function POST(req: Request) {
     const from = process.env.FROM_EMAIL;
     const notify = process.env.LEAD_NOTIFICATION_EMAIL;
 
-    console.error("🔥 ROUTE HIT v4");
-    console.error("ENV CHECK", {
-      resendKey: !!resendKey,
-      mailercloudKey: !!mailercloudKey,
-      from: !!from,
-      notify: !!notify,
-    });
-
     const quoteUrl =
       process.env.QUOTE_URL ||
       "https://headshotprosaz.com/professional-headshot-booth-phoenix/#quote";
@@ -95,46 +87,29 @@ export async function POST(req: Request) {
     const eventType = boothTypeLabel(body.boothType);
     const timeline = body.timeline?.trim() || "";
 
-const listId =
-  body.boothType === "CONVENTION"
-    ? "fHZHHa"
-    : "fyKHKy";
+    const listId =
+      body.boothType === "CONVENTION"
+        ? "fHZHHa"
+        : "fyKHKy";
 
-    console.error("Mailercloud starting");
-    console.error("Mailercloud boothType:", body.boothType);
-    console.error("Mailercloud listId:", listId);
+    try {
+      const mcPayload = {
+        email: body.email,
+        name: firstName,
+        list_id: listId,
+      };
 
-    let mailercloudDebug: any = null;
-
-try {
-  const mcPayload = {
-    email: body.email,
-    name: firstName,
-    list_id: listId,
-  };
-
-  const mcRes = await fetch("https://cloudapi.mailercloud.com/v1/contacts", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: mailercloudKey,
-    },
-    body: JSON.stringify(mcPayload),
-  });
-
-  const mcText = await mcRes.text();
-
-  mailercloudDebug = {
-    status: mcRes.status,
-    ok: mcRes.ok,
-    payload: mcPayload,
-    response: mcText,
-  };
-} catch (err: any) {
-  mailercloudDebug = {
-    error: err?.message || "Mailercloud request failed",
-  };
-}
+      await fetch("https://cloudapi.mailercloud.com/v1/contacts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: mailercloudKey,
+        },
+        body: JSON.stringify(mcPayload),
+      });
+    } catch (err) {
+      console.error("Mailercloud request failed:", err);
+    }
 
     const subject =
       body.boothType === "COMPANY"
@@ -204,15 +179,7 @@ try {
       html: leadHtml,
     });
 
-    return Response.json({
-  success: true,
-  debug: {
-    routeVersion: "v5",
-    boothType: body.boothType,
-    listId,
-    mailercloud: mailercloudDebug,
-  },
-});
+    return Response.json({ success: true });
   } catch (err) {
     console.error(err);
     return Response.json(
