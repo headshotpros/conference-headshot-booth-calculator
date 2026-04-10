@@ -95,7 +95,10 @@ export async function POST(req: Request) {
     const eventType = boothTypeLabel(body.boothType);
     const timeline = body.timeline?.trim() || "";
 
-    const listId = body.boothType === "CONVENTION" ? "fHZHHa" : "uHZwHw";
+    const listId =
+  boothType === "CONVENTION"
+    ? "fHZHHa"
+    : "fyKHKy";
 
     console.error("Mailercloud starting");
     console.error("Mailercloud boothType:", body.boothType);
