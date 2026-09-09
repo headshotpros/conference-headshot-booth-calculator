@@ -33,7 +33,7 @@ function formatHoursToDaysHours(totalHours: number) {
 
 // Public quote link button from this calculator
 const QUOTE_URL = "https://headshotprosaz.com/professional-headshot-booth-phoenix/#quote";
-const COMPANY_HEADSHOTS_QUOTE_URL = "https://headshotprosaz.com/company-headshots-phoenix/#quote";
+const COMPANY_HEADSHOTS_QUOTE_URL = "https://headshotprosaz.com/company-headshots-phoenix/#pricing";
 
 const DISCLAIMER_TEXT =
   "Travel may apply outside the Phoenix metro area. Venue parking fees or accommodations may apply depending on the location and event schedule. Arizona sales tax (8.3%) added where applicable.";
