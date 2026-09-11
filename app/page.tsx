@@ -330,15 +330,24 @@ const overageRatio =
     return { low, high };
   }, [pricing, useParticipationEstimate, computedExpectedHeadshots, demandExceedsCapacity]);
 
-  // Under-20 note (company style)
-  const under20Note = useMemo(() => {
+  // Team Planner handoff for smaller company headshot days
+  const teamPlannerNote = useMemo(() => {
     if (boothType !== "COMPANY") return null;
     if (!useParticipationEstimate || computedExpectedHeadshots == null) return null;
-    if (computedExpectedHeadshots >= 20) return null;
+    if (computedExpectedHeadshots >= 30) return null;
+
+    if (computedExpectedHeadshots < 20) {
+      return {
+        title: "Small team?",
+        body: "For teams under 20, the Team Headshot Planner is usually the better fit. It’s designed for smaller team headshot days rather than high-throughput event pricing.",
+        cta: "Try the Team Headshot Planner"
+      };
+    }
 
     return {
-      title: "Small team?",
-      body: "For groups under 20, we typically quote using our company headshot structure (it’s often a better fit than booth pricing)."
+      title: "Another planning option",
+      body: "If this is more of a smaller-team headshot day than a high-throughput event, the Team Headshot Planner may be a better fit.",
+      cta: "Explore the Team Headshot Planner"
     };
   }, [boothType, useParticipationEstimate, computedExpectedHeadshots]);
 
@@ -727,17 +736,17 @@ Enter the number of people who want headshots, or use total attendees to estimat
   </div>
 </div>
 
-                    {under20Note && (
+                    {teamPlannerNote && (
                       <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-                        <div className="font-semibold text-slate-900">{under20Note.title}</div>
-                        <div className="mt-1 text-slate-600">{under20Note.body}</div>
+                        <div className="font-semibold text-slate-900">{teamPlannerNote.title}</div>
+                        <div className="mt-1 text-slate-600">{teamPlannerNote.body}</div>
                         <a
                           href={COMPANY_HEADSHOTS_QUOTE_URL}
                           target="_blank"
                           rel="noreferrer"
                           className="mt-2 inline-flex items-center justify-center rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"
                         >
-                          Try the Team Headshot Planner
+                          {teamPlannerNote.cta}
                         </a>
                       </div>
                     )}
