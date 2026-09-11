@@ -4,6 +4,9 @@
 
 :root {
   color-scheme: light;
+  --hp-gold: #DF9A2B;
+  --hp-gold-hover: #c88922;
+  --hp-gold-soft: #fff8eb;
 }
 
 html, body {
@@ -12,4 +15,50 @@ html, body {
 
 body {
   @apply bg-white text-slate-900 antialiased;
+}
+
+/* Headshot Pros AZ brand accents */
+header h1::after {
+  content: "";
+  display: block;
+  width: 4rem;
+  height: 4px;
+  margin-top: 0.75rem;
+  border-radius: 9999px;
+  background: var(--hp-gold);
+}
+
+/* Active choice cards */
+.border-slate-900.bg-slate-50 {
+  border-color: var(--hp-gold);
+  background-color: var(--hp-gold-soft);
+}
+
+/* Active segmented controls */
+button.bg-white.text-slate-900.shadow-sm {
+  background-color: var(--hp-gold);
+  color: #0f172a;
+}
+
+/* Selected radio-style dots */
+.border-slate-900.bg-slate-900 {
+  border-color: var(--hp-gold);
+  background-color: var(--hp-gold);
+}
+
+/* Primary actions */
+button.bg-slate-900.text-white,
+a.bg-slate-900.text-white {
+  background-color: var(--hp-gold);
+  color: #0f172a;
+}
+
+button.bg-slate-900.text-white:hover,
+a.bg-slate-900.text-white:hover {
+  background-color: var(--hp-gold-hover);
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--hp-gold);
 }
