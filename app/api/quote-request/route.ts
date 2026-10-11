@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 
-const OWNER_QUOTE_EMAIL = "cari@headshotprosaz.com";
+const OWNER_QUOTE_EMAIL = "cari@marketexpertly.com";
 const OWNER_QUOTE_FROM = "Headshot Pros AZ Planner <planner@headshotprosaz.com>";
 
 type QuotePayload = {
