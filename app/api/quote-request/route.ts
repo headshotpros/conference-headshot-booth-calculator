@@ -167,7 +167,7 @@ export async function POST(req: Request) {
           <p>Hi ${escapeHtml(body.name.trim().split(/\s+/)[0])},</p>
           <h2 style="margin-bottom:8px;">We received your quote request.</h2>
           <p style="color:#475569; line-height:1.6;">
-            Thanks for planning your headshots with Headshot Pros AZ. Cari will review the details you sent and follow up with you.
+            Thanks for planning your headshots with Headshot Pros AZ. Cari at Headshot Pros AZ will review the details you sent and follow up with you.
             Here is a copy for your records so you do not have to recreate anything.
           </p>
         </div>
