@@ -1282,7 +1282,7 @@ Enter the number of people who want headshots, or use total attendees to estimat
 
                         {quoteSentOk && (
                           <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
-                            Got it! Your quote request was sent to Cari, and a copy is on its way to your inbox.
+                            Got it! Your quote request was sent to Headshot Pros AZ, and a copy is on its way to your inbox.
                           </div>
                         )}
                         {quoteSendError && <div className="mt-3 text-sm text-red-700">{quoteSendError}</div>}
