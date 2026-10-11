@@ -269,17 +269,22 @@ export default function Page() {
     return { low: lowCap, high: highCap };
   }, [paceMeta, totalHours, stations]);
 
-  // If demand exceeds capacity, we should not show misleading cost/headshot
-  const demandExceedsCapacity = useMemo(() => {
+  // Comfortable capacity uses the real-world buffer shown to users.
+  // Absolute capacity uses the raw top-end pace with no buffer.
+  const absoluteCapacityHigh = useMemo(() => {
+    const high = paceMeta.perHourRange[1];
+    return Math.floor(totalHours * high * stations);
+  }, [paceMeta, totalHours, stations]);
+
+  const demandExceedsComfortableCapacity = useMemo(() => {
     if (!useParticipationEstimate || computedExpectedHeadshots == null) return false;
     return computedExpectedHeadshots > capacityRange.high;
   }, [useParticipationEstimate, computedExpectedHeadshots, capacityRange.high]);
 
-  // Trigger for just over capacity vs really over capacity
-const overageRatio =
-  computedExpectedHeadshots && capacityRange.high
-    ? computedExpectedHeadshots / capacityRange.high
-    : 0;
+  const demandExceedsAbsoluteCapacity = useMemo(() => {
+    if (!useParticipationEstimate || computedExpectedHeadshots == null) return false;
+    return computedExpectedHeadshots > absoluteCapacityHigh;
+  }, [useParticipationEstimate, computedExpectedHeadshots, absoluteCapacityHigh]);
 
   // Pricing: base range + add-ons + multiday discount
   const pricing = useMemo(() => {
@@ -346,12 +351,12 @@ const overageRatio =
   const costPerHeadshot = useMemo(() => {
     if (pricing.isCustom) return null;
     if (!useParticipationEstimate || computedExpectedHeadshots == null || computedExpectedHeadshots <= 0) return null;
-    if (demandExceedsCapacity) return null;
+    if (demandExceedsAbsoluteCapacity) return null;
 
     const low = Math.round(pricing.low / computedExpectedHeadshots);
     const high = Math.round(pricing.high / computedExpectedHeadshots);
     return { low, high };
-  }, [pricing, useParticipationEstimate, computedExpectedHeadshots, demandExceedsCapacity]);
+  }, [pricing, useParticipationEstimate, computedExpectedHeadshots, demandExceedsAbsoluteCapacity]);
 
   // Team Planner handoff for smaller company headshot days
   const teamPlannerNote = useMemo(() => {
@@ -1035,25 +1040,25 @@ Enter the number of people who want headshots, or use total attendees to estimat
                   />
                 </div>
 
-                {demandExceedsCapacity && (
+                {demandExceedsComfortableCapacity && (
   <div
     className={`mt-3 rounded-lg border p-3 text-sm text-slate-700
       ${
-        overageRatio <= 1.15
-          ? "border-amber-300 border-l-4 border-l-amber-400 bg-amber-50"
-          : "border-rose-300 border-l-4 border-l-rose-400 bg-rose-50"
+        demandExceedsAbsoluteCapacity
+          ? "border-rose-300 border-l-4 border-l-rose-400 bg-rose-50"
+          : "border-amber-300 border-l-4 border-l-amber-400 bg-amber-50"
       }`}
   >
     <div className="font-semibold text-slate-900">
-      {overageRatio <= 1.15
-        ? "Heads up: your current setup may be tight for this headcount."
-        : "Heads up: your current setup likely won’t cover everyone in time."}
+      {demandExceedsAbsoluteCapacity
+        ? "Heads up: your current setup likely won’t cover everyone in time."
+        : "Heads up: your current setup is possible, but tight."}
     </div>
 
     <div className="mt-1 text-slate-600">
-      {overageRatio <= 1.15
-        ? "To photograph everyone comfortably, you could add a photographer station, extend time, or choose a quicker headshot experience."
-        : "To photograph everyone comfortably, you’ll likely need to add a photographer station, extend time, or choose a quicker headshot experience."}
+      {demandExceedsAbsoluteCapacity
+        ? "To photograph everyone within this time window, you’ll need to add a photographer station, extend time, or choose a quicker headshot experience."
+        : "This would require a steady flow with very little downtime, and wait times are likely during busy periods. Adding time or another station will give you more breathing room."}
     </div>
   </div>
 )}
@@ -1066,9 +1071,9 @@ Enter the number of people who want headshots, or use total attendees to estimat
                       </div>
                       <div className="mt-1 text-xs text-slate-500">Based on your estimated headshots (not total attendees).</div>
                     </>
-                  ) : demandExceedsCapacity ? (
+                  ) : demandExceedsAbsoluteCapacity ? (
                     <div className="mt-1 text-sm text-slate-600">
-                      Not shown because the headshots needed exceed capacity. Add stations or time to get a usable per-headshot estimate.
+                      Not shown because the headshots needed exceed the top-end capacity for this setup. Add stations or time to get a usable per-headshot estimate.
                     </div>
                   ) : (
                     <div className="mt-1 text-sm text-slate-600">
