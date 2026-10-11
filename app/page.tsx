@@ -991,6 +991,97 @@ Enter the number of people who want headshots, or use total attendees to estimat
 
             {/* Right: Outputs */}
             <div className="space-y-6">
+              {/* Capacity & Staffing */}
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <h2 className="text-base font-semibold text-slate-900">Suggested headshot booth setup</h2>
+
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+  <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
+    {autoStations ? "Recommended photographer stations" : "Photographer stations selected"}
+  </div>
+
+  <div className="mt-1 text-2xl font-semibold text-slate-900">
+    {stations} {stations === 1 ? "station" : "stations"}
+  </div>
+
+  <p className="mt-1 text-xs text-slate-500">
+    {autoStations
+      ? recommendedStations === 1
+        ? "Covers your expected headcount within your time window."
+        : "Helps reduce wait times and keep lines moving smoothly."
+      : "Manually selected. Wait times and capacity will update based on your choice."}
+  </p>
+
+{useParticipationEstimate &&
+  computedExpectedHeadshots != null &&
+  computedExpectedHeadshots <= capacityRange.high &&
+  computedExpectedHeadshots > Math.floor(capacityRange.low * 0.85) && (
+    <p className="mt-2 text-xs text-amber-600">
+      You’re close to the upper end of this setup. Adding time, an additional station, or choosing a quicker headshot experience could help keep lines shorter during busy periods.
+    </p>
+)}
+</div>
+                  <Stat label="Session Speed" value={paceMeta.label} />
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <Stat label="Estimated capacity" value={`${capacityRange.low}–${capacityRange.high} attendees`} />
+                  <Stat
+                    label="Estimated headshots needed"
+                    value={useParticipationEstimate && computedExpectedHeadshots != null ? `${computedExpectedHeadshots}` : "Not provided"}
+                  />
+                </div>
+
+                {demandExceedsCapacity && (
+  <div
+    className={`mt-3 rounded-lg border p-3 text-sm text-slate-700
+      ${
+        overageRatio <= 1.15
+          ? "border-amber-300 border-l-4 border-l-amber-400 bg-amber-50"
+          : "border-rose-300 border-l-4 border-l-rose-400 bg-rose-50"
+      }`}
+  >
+    <div className="font-semibold text-slate-900">
+      {overageRatio <= 1.15
+        ? "Heads up: your current setup may be tight for this headcount."
+        : "Heads up: your current setup likely won’t cover everyone in time."}
+    </div>
+
+    <div className="mt-1 text-slate-600">
+      {overageRatio <= 1.15
+        ? "To photograph everyone comfortably, you could add a photographer station, extend time, or choose a quicker headshot experience."
+        : "To photograph everyone comfortably, you’ll likely need to add a photographer station, extend time, or choose a quicker headshot experience."}
+    </div>
+  </div>
+)}
+                <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+                  <div className="text-sm font-semibold text-slate-900">Estimated cost per headshot</div>
+                  {costPerHeadshot ? (
+                    <>
+                      <div className="mt-1 text-sm text-slate-700">
+                        {formatMoney(costPerHeadshot.low)} – {formatMoney(costPerHeadshot.high)} per headshot
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500">Based on your estimated headshots (not total attendees).</div>
+                    </>
+                  ) : demandExceedsCapacity ? (
+                    <div className="mt-1 text-sm text-slate-600">
+                      Not shown because the headshots needed exceed capacity. Add stations or time to get a usable per-headshot estimate.
+                    </div>
+                  ) : (
+                    <div className="mt-1 text-sm text-slate-600">
+                      Add how many people you expect will get headshots above to see a per-headshot estimate.
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+                  <div className="text-sm font-semibold text-slate-900">{planningInsight.title}</div>
+                  <div className="mt-1 text-sm text-slate-600">{planningInsight.body}</div>
+                </div>
+              </div>
+
+
               {/* Budget */}
               <div className="rounded-xl border border-slate-200 p-4">
                 <h2 className="text-base font-semibold text-slate-900">Estimated budget range</h2>
@@ -1331,96 +1422,6 @@ Enter the number of people who want headshots, or use total attendees to estimat
                   >
                     Request a custom quote
                   </button>
-                </div>
-              </div>
-
-              {/* Capacity & Staffing */}
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <h2 className="text-base font-semibold text-slate-900">Suggested headshot booth setup</h2>
-
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <div className="rounded-xl border border-slate-200 bg-white p-3">
-  <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
-    {autoStations ? "Recommended photographer stations" : "Photographer stations selected"}
-  </div>
-
-  <div className="mt-1 text-2xl font-semibold text-slate-900">
-    {stations} {stations === 1 ? "station" : "stations"}
-  </div>
-
-  <p className="mt-1 text-xs text-slate-500">
-    {autoStations
-      ? recommendedStations === 1
-        ? "Covers your expected headcount within your time window."
-        : "Helps reduce wait times and keep lines moving smoothly."
-      : "Manually selected. Wait times and capacity will update based on your choice."}
-  </p>
-
-{useParticipationEstimate &&
-  computedExpectedHeadshots != null &&
-  computedExpectedHeadshots <= capacityRange.high &&
-  computedExpectedHeadshots > Math.floor(capacityRange.low * 0.85) && (
-    <p className="mt-2 text-xs text-amber-600">
-      You’re close to the upper end of this setup. Adding time, an additional station, or choosing a quicker headshot experience could help keep lines shorter during busy periods.
-    </p>
-)}
-</div>
-                  <Stat label="Session Speed" value={paceMeta.label} />
-                </div>
-
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <Stat label="Estimated capacity" value={`${capacityRange.low}–${capacityRange.high} attendees`} />
-                  <Stat
-                    label="Estimated headshots needed"
-                    value={useParticipationEstimate && computedExpectedHeadshots != null ? `${computedExpectedHeadshots}` : "Not provided"}
-                  />
-                </div>
-
-                {demandExceedsCapacity && (
-  <div
-    className={`mt-3 rounded-lg border p-3 text-sm text-slate-700
-      ${
-        overageRatio <= 1.15
-          ? "border-amber-300 border-l-4 border-l-amber-400 bg-amber-50"
-          : "border-rose-300 border-l-4 border-l-rose-400 bg-rose-50"
-      }`}
-  >
-    <div className="font-semibold text-slate-900">
-      {overageRatio <= 1.15
-        ? "Heads up: your current setup may be tight for this headcount."
-        : "Heads up: your current setup likely won’t cover everyone in time."}
-    </div>
-
-    <div className="mt-1 text-slate-600">
-      {overageRatio <= 1.15
-        ? "To photograph everyone comfortably, you could add a photographer station, extend time, or choose a quicker headshot experience."
-        : "To photograph everyone comfortably, you’ll likely need to add a photographer station, extend time, or choose a quicker headshot experience."}
-    </div>
-  </div>
-)}
-                <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
-                  <div className="text-sm font-semibold text-slate-900">Estimated cost per headshot</div>
-                  {costPerHeadshot ? (
-                    <>
-                      <div className="mt-1 text-sm text-slate-700">
-                        {formatMoney(costPerHeadshot.low)} – {formatMoney(costPerHeadshot.high)} per headshot
-                      </div>
-                      <div className="mt-1 text-xs text-slate-500">Based on your estimated headshots (not total attendees).</div>
-                    </>
-                  ) : demandExceedsCapacity ? (
-                    <div className="mt-1 text-sm text-slate-600">
-                      Not shown because the headshots needed exceed capacity. Add stations or time to get a usable per-headshot estimate.
-                    </div>
-                  ) : (
-                    <div className="mt-1 text-sm text-slate-600">
-                      Add how many people you expect will get headshots above to see a per-headshot estimate.
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
-                  <div className="text-sm font-semibold text-slate-900">{planningInsight.title}</div>
-                  <div className="mt-1 text-sm text-slate-600">{planningInsight.body}</div>
                 </div>
               </div>
             </div>
