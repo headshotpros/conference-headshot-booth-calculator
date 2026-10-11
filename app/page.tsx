@@ -1058,7 +1058,7 @@ Enter the number of people who want headshots, or use total attendees to estimat
     <div className="mt-1 text-slate-600">
       {demandExceedsAbsoluteCapacity
         ? "To photograph everyone within this time window, you’ll need to add a photographer station, extend time, or choose a quicker headshot experience."
-        : "This would require a steady flow with very little downtime, and wait times are likely during busy periods. Adding time or another station will give you more breathing room."}
+        : "You’d need a steady flow with little downtime, and wait times are likely during busy periods. Adding time, another station, or choosing a faster experience will give you more breathing room."}
     </div>
   </div>
 )}
