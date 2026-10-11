@@ -1103,15 +1103,6 @@ Enter the number of people who want headshots, or use total attendees to estimat
                       )}
                     </div>
 
-                    {!showEmailForm && (
-                      <button
-                        onClick={openEmailFormAndFocusFirstName}
-                        className="mt-4 w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-                      >
-                        Save my estimate
-                      </button>
-                    )}
-
                     {showEmailForm && (
                       <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
                         <h3 className="text-lg font-semibold text-slate-900">Save Your Results</h3>
@@ -1410,17 +1401,17 @@ Enter the number of people who want headshots, or use total attendees to estimat
                 {/* Bottom CTAs */}
                 <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                   <button
-                    onClick={openEmailFormAndFocusFirstName}
+                    onClick={openQuoteForm}
                     className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800"
                   >
-                    Save my estimate
+                    Request a custom quote
                   </button>
 
                   <button
-                    onClick={openQuoteForm}
+                    onClick={openEmailFormAndFocusFirstName}
                     className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50"
                   >
-                    Request a custom quote
+                    Save my estimate
                   </button>
                 </div>
               </div>
