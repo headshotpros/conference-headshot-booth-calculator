@@ -154,6 +154,7 @@ export default function Page() {
   const [quoteNotes, setQuoteNotes] = useState("");
   const [quoteSending, setQuoteSending] = useState(false);
   const [quoteSentOk, setQuoteSentOk] = useState(false);
+  const [quoteClientCopySent, setQuoteClientCopySent] = useState(true);
   const [quoteSendError, setQuoteSendError] = useState<string | null>(null);
 
   const firstNameInputRef = useRef<HTMLInputElement | null>(null);
@@ -413,6 +414,7 @@ const overageRatio =
   function openQuoteForm() {
     setShowQuoteForm(true);
     setQuoteSentOk(false);
+    setQuoteClientCopySent(true);
     setQuoteSendError(null);
 
     if (!quoteName && leadFirstName) setQuoteName(leadFirstName);
@@ -475,6 +477,7 @@ const overageRatio =
       const out = await res.json();
       if (!res.ok) throw new Error(out?.error || "Failed to send quote request");
 
+      setQuoteClientCopySent(out?.clientCopySent !== false);
       setQuoteSentOk(true);
     } catch (e: any) {
       setQuoteSendError(e?.message || "Failed to send quote request");
@@ -1282,7 +1285,9 @@ Enter the number of people who want headshots, or use total attendees to estimat
 
                         {quoteSentOk && (
                           <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
-                            Got it! Your quote request was sent to Headshot Pros AZ, and a copy is on its way to your inbox.
+                            {quoteClientCopySent
+                              ? "Got it! Your quote request was sent to Headshot Pros AZ, and a copy is on its way to your inbox."
+                              : "Got it! Your quote request was sent to Headshot Pros AZ. We weren’t able to send the confirmation copy, but your request was received."}
                           </div>
                         )}
                         {quoteSendError && <div className="mt-3 text-sm text-red-700">{quoteSendError}</div>}
