@@ -1025,7 +1025,9 @@ Enter the number of people who want headshots, or use total attendees to estimat
   computedExpectedHeadshots <= capacityRange.high &&
   computedExpectedHeadshots > Math.floor(capacityRange.low * 0.85) && (
     <p className="mt-2 text-xs text-amber-600">
-      You’re close to the upper end of this setup. Adding time, an additional station, or choosing a quicker headshot experience could help keep lines shorter during busy periods.
+{pace === "HIGH"
+        ? "You’re getting close to capacity, which could result in longer wait times. Adding time or an additional station could help keep lines shorter during busy periods."
+        : "You’re getting close to capacity, which could result in longer wait times. Adding time, an additional station, or choosing a quicker headshot experience could help keep lines shorter during busy periods."}
     </p>
 )}
 </div>
@@ -1057,7 +1059,11 @@ Enter the number of people who want headshots, or use total attendees to estimat
 
     <div className="mt-1 text-slate-600">
       {demandExceedsAbsoluteCapacity
-        ? "To photograph everyone within this time window, you’ll need to add a photographer station, extend time, or choose a quicker headshot experience."
+        ? pace === "HIGH"
+          ? "To photograph everyone within this time window, you’ll need to add a photographer station or extend the time."
+          : "To photograph everyone within this time window, you’ll need to add a photographer station, extend time, or choose a quicker headshot experience."
+        : pace === "HIGH"
+        ? "You’d need a steady flow with little downtime, and wait times are likely during busy periods. Adding time or another station will give you more breathing room."
         : "You’d need a steady flow with little downtime, and wait times are likely during busy periods. Adding time, another station, or choosing a faster experience will give you more breathing room."}
     </div>
   </div>
