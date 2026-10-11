@@ -406,6 +406,7 @@ const overageRatio =
   }
 
   function openEmailFormAndFocusFirstName() {
+    setShowQuoteForm(false);
     setShowEmailForm(true);
     setSentOk(false);
     setSendError(null);
@@ -416,6 +417,7 @@ const overageRatio =
   }
 
   function openQuoteForm() {
+    setShowEmailForm(false);
     setShowQuoteForm(true);
     setQuoteSentOk(false);
     setQuoteClientCopySent(true);
