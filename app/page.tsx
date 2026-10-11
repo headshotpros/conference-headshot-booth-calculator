@@ -117,7 +117,7 @@ export default function Page() {
   const [participationRate, setParticipationRate] = useState(25); // %
 
   // OFF by default
-  const [useParticipationEstimate, setUseParticipationEstimate] = useState(false);
+  const [useParticipationEstimate, setUseParticipationEstimate] = useState(true);
 
   // Pace
   const [pace, setPace] = useState<Pace>("HIGH");
@@ -175,7 +175,7 @@ export default function Page() {
     setParticipationRate(25);
     setAttendees(600);
     setExpectedHeadshots(120);
-    setUseParticipationEstimate(false);
+    setUseParticipationEstimate(true);
     setAutoStations(false);
     setStationsOverride(1);
     setAddEnhancedRetouch(false);
@@ -186,7 +186,7 @@ export default function Page() {
     setExpectedHeadshots(40);
     setAttendees(200);
     setParticipationRate(60);
-    setUseParticipationEstimate(false);
+    setUseParticipationEstimate(true);
     setAutoStations(false);
     setStationsOverride(1);
     setAddEnhancedRetouch(true);
