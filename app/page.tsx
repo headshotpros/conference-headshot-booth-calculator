@@ -317,18 +317,18 @@ export default function Page() {
     return { isCustom: false, low, mid, high, discount };
   }, [totalDays, perDayHours, isHalfDayPerDay, stations, addEnhancedRetouch, addMakeup, makeupArtists]);
 
-  // Wait time estimate (buffered)
+  // Wait-time status: comfortable capacity is buffered;
+  // red begins only after the true top-end throughput is exceeded.
   const waitTimeStatus = useMemo(() => {
     if (!useParticipationEstimate || computedExpectedHeadshots == null) return null;
 
     const demand = computedExpectedHeadshots;
     const lowCap = capacityRange.low;
-    const highCap = capacityRange.high;
 
     if (demand <= Math.floor(lowCap * 0.85)) return "green" as const;
-    if (demand > highCap) return "red" as const;
+    if (demand > absoluteCapacityHigh) return "red" as const;
     return "yellow" as const;
-  }, [useParticipationEstimate, computedExpectedHeadshots, capacityRange.low, capacityRange.high]);
+  }, [useParticipationEstimate, computedExpectedHeadshots, capacityRange.low, absoluteCapacityHigh]);
 
   const waitTimeCopy = useMemo(() => {
     if (!waitTimeStatus) {
