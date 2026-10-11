@@ -1,5 +1,7 @@
 import { Resend } from "resend";
 
+const OWNER_QUOTE_EMAIL = "cari@headshotprosaz.com";
+
 type QuotePayload = {
   name: string;
   company: string;
@@ -79,9 +81,8 @@ export async function POST(req: Request) {
   try {
     const resendKey = process.env.RESEND_API_KEY;
     const from = process.env.FROM_EMAIL;
-    const notify = process.env.LEAD_NOTIFICATION_EMAIL;
 
-    if (!resendKey || !from || !notify) {
+    if (!resendKey || !from) {
       return Response.json(
         { error: "Missing email configuration." },
         { status: 500 }
@@ -218,23 +219,44 @@ export async function POST(req: Request) {
 
     const internalSubject = `New quote request — ${body.company.trim()} — ${body.name.trim()}`;
 
-    await Promise.all([
-      resend.emails.send({
-        from,
-        to: body.email.trim(),
-        subject: prospectSubject,
-        html: prospectHtml,
-      }),
-      resend.emails.send({
-        from,
-        to: notify,
-        replyTo: body.email.trim(),
-        subject: internalSubject,
-        html: ownerHtml,
-      }),
-    ]);
+    // The internal lead notification is the critical delivery.
+    // Send it first and verify Resend actually accepted it before
+    // confirming the request to the prospect.
+    const ownerSend = await resend.emails.send({
+      from,
+      to: OWNER_QUOTE_EMAIL,
+      replyTo: body.email.trim(),
+      subject: internalSubject,
+      html: ownerHtml,
+    });
 
-    return Response.json({ success: true });
+    if (ownerSend.error) {
+      console.error("Owner quote notification failed:", ownerSend.error);
+      return Response.json(
+        { error: "We couldn’t submit your quote request. Please try again." },
+        { status: 502 }
+      );
+    }
+
+    const clientSend = await resend.emails.send({
+      from,
+      to: body.email.trim(),
+      subject: prospectSubject,
+      html: prospectHtml,
+    });
+
+    if (clientSend.error) {
+      console.error("Client quote confirmation failed:", clientSend.error);
+      return Response.json({
+        success: true,
+        clientCopySent: false,
+      });
+    }
+
+    return Response.json({
+      success: true,
+      clientCopySent: true,
+    });
   } catch (err) {
     console.error("Quote request failed:", err);
     return Response.json(
