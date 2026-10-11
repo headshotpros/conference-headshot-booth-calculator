@@ -117,18 +117,29 @@ export async function POST(req: Request) {
       detailRow("Planner", eventType),
       detailRow("Estimated budget", `${formatMoney(body.estimateLow)} – ${formatMoney(body.estimateHigh)}`),
       detailRow("Coverage", body.hoursLabel),
-      detailRow("Expected demand", body.expectedHeadshotsLabel),
       detailRow("Session speed", body.paceLabel),
       detailRow("Photographer stations", body.stationsLabel || body.stations),
       detailRow("Estimated capacity", `${body.capacityLow}–${body.capacityHigh}`),
-      detailRow("Multi-day", yesNo(body.isMultiDay)),
-      detailRow("Days entered", body.days),
-      detailRow("Hours per day", body.hoursPerDay),
-      detailRow("Headshot estimate turned on", yesNo(body.useParticipationEstimate)),
-      detailRow("Headcount input method", body.volumeInputMode === "HEADSHOTS" ? "People who want headshots" : "Total attendees + participation"),
-      detailRow("Headshots entered", body.expectedHeadshots),
-      detailRow("Total attendees entered", body.attendees),
-      detailRow("Participation rate entered", `${body.participationRate}%`),
+      ...(body.isMultiDay
+        ? [detailRow("Days", body.days), detailRow("Hours per day", body.hoursPerDay)]
+        : [detailRow("Hours on-site", body.hoursPerDay)]),
+      ...(body.useParticipationEstimate
+        ? [
+            detailRow("Expected demand", body.expectedHeadshotsLabel),
+            detailRow(
+              "Headcount input method",
+              body.volumeInputMode === "HEADSHOTS"
+                ? "People who want headshots"
+                : "Total attendees + participation"
+            ),
+            ...(body.volumeInputMode === "HEADSHOTS"
+              ? [detailRow("People needing headshots", body.expectedHeadshots)]
+              : [
+                  detailRow("Total attendees", body.attendees),
+                  detailRow("Expected participation", `${body.participationRate}%`),
+                ]),
+          ]
+        : [detailRow("Expected headshot count", "Not provided")]),
       detailRow("Stations auto-recommended", yesNo(body.autoStations)),
       detailRow("Makeup artist option", body.addMakeup ? `Yes — ${body.makeupArtists} artist${body.makeupArtists === 1 ? "" : "s"}` : "No"),
       detailRow("Enhanced retouching", yesNo(body.addEnhancedRetouch)),
