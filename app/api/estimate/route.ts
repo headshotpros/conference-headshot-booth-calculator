@@ -55,17 +55,17 @@ export async function POST(req: Request) {
     const resendKey = process.env.RESEND_API_KEY;
     const mailercloudKey = process.env.MAILERCLOUD_API_KEY;
     const from = process.env.FROM_EMAIL;
-    const notify = process.env.LEAD_NOTIFICATION_EMAIL;
+    const notify = "cari@marketexpertly.com";
 
     const quoteUrl =
       process.env.QUOTE_URL ||
       "https://headshotprosaz.com/professional-headshot-booth-phoenix/#quote";
 
-    if (!resendKey || !mailercloudKey || !from || !notify) {
+    if (!resendKey || !mailercloudKey || !from) {
       return Response.json(
         {
           error:
-            "Missing RESEND_API_KEY, MAILERCLOUD_API_KEY, FROM_EMAIL, or LEAD_NOTIFICATION_EMAIL",
+            "Missing RESEND_API_KEY, MAILERCLOUD_API_KEY, or FROM_EMAIL",
         },
         { status: 500 }
       );
