@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 
 const OWNER_QUOTE_EMAIL = "cari@headshotprosaz.com";
+const OWNER_QUOTE_FROM = "Headshot Pros AZ Planner <planner@headshotprosaz.com>";
 
 type QuotePayload = {
   name: string;
@@ -223,12 +224,16 @@ export async function POST(req: Request) {
     // Send it first and verify Resend actually accepted it before
     // confirming the request to the prospect.
     const ownerSend = await resend.emails.send({
-      from,
+      from: OWNER_QUOTE_FROM,
       to: OWNER_QUOTE_EMAIL,
       replyTo: body.email.trim(),
       subject: internalSubject,
       html: ownerHtml,
     });
+
+    if (ownerSend.data?.id) {
+      console.log("Owner quote notification accepted by Resend:", ownerSend.data.id);
+    }
 
     if (ownerSend.error) {
       console.error("Owner quote notification failed:", ownerSend.error);
