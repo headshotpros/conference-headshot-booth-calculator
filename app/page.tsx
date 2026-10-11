@@ -142,7 +142,22 @@ export default function Page() {
   const [eventTimeline, setEventTimeline] = useState("");
   const [optInWorksheet, setOptInWorksheet] = useState(true);
 
+  // Custom quote request
+  const [showQuoteForm, setShowQuoteForm] = useState(false);
+  const [quoteName, setQuoteName] = useState("");
+  const [quoteCompany, setQuoteCompany] = useState("");
+  const [quoteEmail, setQuoteEmail] = useState("");
+  const [quotePhone, setQuotePhone] = useState("");
+  const [quotePreferredContact, setQuotePreferredContact] = useState<"email" | "call" | "text" | "no_preference">("email");
+  const [quoteWhen, setQuoteWhen] = useState("");
+  const [quoteWhere, setQuoteWhere] = useState("");
+  const [quoteNotes, setQuoteNotes] = useState("");
+  const [quoteSending, setQuoteSending] = useState(false);
+  const [quoteSentOk, setQuoteSentOk] = useState(false);
+  const [quoteSendError, setQuoteSendError] = useState<string | null>(null);
+
   const firstNameInputRef = useRef<HTMLInputElement | null>(null);
+  const quoteFormRef = useRef<HTMLDivElement | null>(null);
   const emailInputRef = useRef<HTMLInputElement | null>(null);
   const participationSectionRef = useRef<HTMLDivElement | null>(null);
 
@@ -176,6 +191,9 @@ export default function Page() {
   setSentOk(false);
   setSendError(null);
   setEventTimeline("");
+  setShowQuoteForm(false);
+  setQuoteSentOk(false);
+  setQuoteSendError(null);
 }, [boothType]);
 
   // Derived: total hours
@@ -392,6 +410,79 @@ const overageRatio =
     }, 50);
   }
 
+  function openQuoteForm() {
+    setShowQuoteForm(true);
+    setQuoteSentOk(false);
+    setQuoteSendError(null);
+
+    if (!quoteName && leadFirstName) setQuoteName(leadFirstName);
+    if (!quoteEmail && leadEmail) setQuoteEmail(leadEmail);
+    if (!quotePhone && leadPhone) setQuotePhone(leadPhone);
+
+    setTimeout(() => {
+      quoteFormRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 50);
+  }
+
+  async function sendQuoteRequest() {
+    setQuoteSending(true);
+    setQuoteSentOk(false);
+    setQuoteSendError(null);
+
+    try {
+      const payload = {
+        name: quoteName.trim(),
+        company: quoteCompany.trim(),
+        email: quoteEmail.trim(),
+        phone: quotePhone.trim(),
+        preferredContact: quotePreferredContact,
+        eventWhen: quoteWhen.trim(),
+        eventWhere: quoteWhere.trim(),
+        notes: quoteNotes.trim() || undefined,
+
+        boothType,
+        estimateLow: pricing.low,
+        estimateHigh: pricing.high,
+        hoursLabel,
+        expectedHeadshotsLabel,
+        paceLabel,
+        stations,
+        stationsLabel,
+        capacityLow: capacityRange.low,
+        capacityHigh: capacityRange.high,
+        disclaimerText: DISCLAIMER_TEXT,
+
+        isMultiDay,
+        days: totalDays,
+        hoursPerDay: perDayHours,
+        useParticipationEstimate,
+        volumeInputMode,
+        expectedHeadshots,
+        attendees,
+        participationRate,
+        autoStations,
+        addMakeup,
+        makeupArtists,
+        addEnhancedRetouch
+      };
+
+      const res = await fetch("/api/quote-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const out = await res.json();
+      if (!res.ok) throw new Error(out?.error || "Failed to send quote request");
+
+      setQuoteSentOk(true);
+    } catch (e: any) {
+      setQuoteSendError(e?.message || "Failed to send quote request");
+    } finally {
+      setQuoteSending(false);
+    }
+  }
+
   async function sendEstimateEmail() {
     setSending(true);
     setSentOk(false);
@@ -479,6 +570,13 @@ setSentOk(true);
   }, [boothType]);
 
   const canSendEmail = leadFirstName.trim().length > 0 && leadEmail.trim().includes("@");
+  const canSendQuote =
+    quoteName.trim().length > 0 &&
+    quoteCompany.trim().length > 0 &&
+    quoteEmail.trim().includes("@") &&
+    quotePhone.trim().length > 0 &&
+    quoteWhen.trim().length > 0 &&
+    quoteWhere.trim().length > 0;
 
   return (
     <main className="min-h-screen bg-white">
@@ -1068,6 +1166,129 @@ Enter the number of people who want headshots, or use total attendees to estimat
                       </div>
                     )}
 
+                    {showQuoteForm && (
+                      <div ref={quoteFormRef} className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+                        <h3 className="text-lg font-semibold text-slate-900">Request a Custom Quote</h3>
+                        <p className="mt-2 text-sm text-slate-600">
+                          You’ve already done the planning, so you won’t need to enter it again. Add your contact and event details below and we’ll send the full request to Cari. You’ll get a copy too.
+                        </p>
+
+                        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          <div>
+                            <label className="text-sm font-medium text-slate-700">Name *</label>
+                            <input
+                              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
+                              placeholder="Your name"
+                              value={quoteName}
+                              onChange={(e) => setQuoteName(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-slate-700">Company / organization *</label>
+                            <input
+                              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
+                              placeholder="Company name"
+                              value={quoteCompany}
+                              onChange={(e) => setQuoteCompany(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-slate-700">Email *</label>
+                            <input
+                              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
+                              placeholder="you@company.com"
+                              value={quoteEmail}
+                              onChange={(e) => setQuoteEmail(e.target.value)}
+                              inputMode="email"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-slate-700">Phone *</label>
+                            <input
+                              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
+                              placeholder="Best number to reach you"
+                              value={quotePhone}
+                              onChange={(e) => setQuotePhone(e.target.value)}
+                              inputMode="tel"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-slate-700">When? *</label>
+                            <input
+                              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
+                              placeholder="Date, month, or 'not set yet'"
+                              value={quoteWhen}
+                              onChange={(e) => setQuoteWhen(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-slate-700">Where? *</label>
+                            <input
+                              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
+                              placeholder="City, venue, or 'TBD'"
+                              value={quoteWhere}
+                              onChange={(e) => setQuoteWhere(e.target.value)}
+                            />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="text-sm font-medium text-slate-700">Best way to contact you</label>
+                            <select
+                              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                              value={quotePreferredContact}
+                              onChange={(e) => setQuotePreferredContact(e.target.value as "email" | "call" | "text" | "no_preference")}
+                            >
+                              <option value="email">Email</option>
+                              <option value="call">Call</option>
+                              <option value="text">Text</option>
+                              <option value="no_preference">No preference</option>
+                            </select>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="text-sm font-medium text-slate-700">Anything else Cari should know? <span className="font-normal text-slate-400">(optional)</span></label>
+                            <textarea
+                              className="mt-1 min-h-24 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
+                              placeholder="Branding requirements, scheduling notes, decision timeline, questions, or anything else that would help."
+                              value={quoteNotes}
+                              onChange={(e) => setQuoteNotes(e.target.value)}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                          <div className="font-semibold text-slate-900">We’ll include your planner details automatically</div>
+                          <div className="mt-2 grid gap-1 text-xs text-slate-600">
+                            <div><strong>Budget:</strong> {formatMoney(pricing.low)} – {formatMoney(pricing.high)}</div>
+                            <div><strong>Coverage:</strong> {hoursLabel}</div>
+                            <div><strong>Headshots:</strong> {expectedHeadshotsLabel}</div>
+                            <div><strong>Experience:</strong> {paceMeta.label}</div>
+                            <div><strong>Stations:</strong> {stationsLabel}</div>
+                          </div>
+                          <p className="mt-2 text-xs text-slate-500">
+                            Your full submission also includes the headcount inputs, participation settings, time, staffing, makeup and retouching choices, capacity estimate, and other planner selections.
+                          </p>
+                        </div>
+
+                        <button
+                          className="mt-4 w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                          disabled={quoteSending || quoteSentOk || !canSendQuote || pricing.isCustom}
+                          onClick={sendQuoteRequest}
+                        >
+                          {quoteSending ? "Sending…" : quoteSentOk ? "Quote request sent" : "Send my quote request"}
+                        </button>
+
+                        <p className="mt-2 text-xs text-slate-500">
+                          This sends your quote request to Headshot Pros AZ and emails you a copy for your records.
+                        </p>
+
+                        {quoteSentOk && (
+                          <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+                            Got it! Your quote request was sent to Cari, and a copy is on its way to your inbox.
+                          </div>
+                        )}
+                        {quoteSendError && <div className="mt-3 text-sm text-red-700">{quoteSendError}</div>}
+                      </div>
+                    )}
+
                     {/* Includes */}
                     <div className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
                       <div className="font-medium text-slate-900">What this typically includes</div>
@@ -1095,14 +1316,12 @@ Enter the number of people who want headshots, or use total attendees to estimat
                     Save my estimate
                   </button>
 
-                  <a
-                    href={QUOTE_URL}
-                    target="_blank"
-                    rel="noreferrer"
+                  <button
+                    onClick={openQuoteForm}
                     className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50"
                   >
                     Request a custom quote
-                  </a>
+                  </button>
                 </div>
               </div>
 
