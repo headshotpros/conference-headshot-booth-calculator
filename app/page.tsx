@@ -123,7 +123,7 @@ export default function Page() {
   const [pace, setPace] = useState<Pace>("HIGH");
 
   // Photographer stations
-  const [autoStations, setAutoStations] = useState(true);
+  const [autoStations, setAutoStations] = useState(false);
   const [stationsOverride, setStationsOverride] = useState<1 | 2 | 3>(1);
 
   // Options
@@ -176,6 +176,8 @@ export default function Page() {
     setAttendees(600);
     setExpectedHeadshots(120);
     setUseParticipationEstimate(false);
+    setAutoStations(false);
+    setStationsOverride(1);
     setAddEnhancedRetouch(false);
   } else {
     setMode("VOLUME");
@@ -185,6 +187,8 @@ export default function Page() {
     setAttendees(200);
     setParticipationRate(60);
     setUseParticipationEstimate(false);
+    setAutoStations(false);
+    setStationsOverride(1);
     setAddEnhancedRetouch(true);
   }
 
