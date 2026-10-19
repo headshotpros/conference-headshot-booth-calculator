@@ -47,12 +47,14 @@ const REAL_WORLD_BUFFER = 0.9; // 10% conservative buffer, always-on
 /**
  * Base pricing ranges (per day, 1 photographer station)
  * Half day (≤4 hours/day): $2,250–$2,700 (typical $2,500)
- * Extended coverage (>4 up to 5.5 hours/day): $2,700–$3,300 (typical $3,000)
- * Full day (>5.5 up to 8 hours/day): $3,500–$4,000 (typical $3,750)
+ * Extended coverage (4.5–5 hours/day): $2,700–$3,300 (typical $3,000)
+ * Near-full day (5.5–6.5 hours/day): $3,250–$3,750 (typical $3,500)
+ * Full day (7–8 hours/day): $3,500–$4,000 (typical $3,750)
  */
 const BASE_PRICING = {
   halfDay: { low: 2250, mid: 2500, high: 2700 },
   extendedDay: { low: 2700, mid: 3000, high: 3300 },
+  nearFullDay: { low: 3250, mid: 3500, high: 3750 },
   fullDay: { low: 3500, mid: 3750, high: 4000 }
 };
 
@@ -213,12 +215,15 @@ export default function Page() {
   const totalDays = useMemo(() => (isMultiDay ? clamp(days, 1, 5) : 1), [isMultiDay, days]);
   const perDayHours = useMemo(() => clamp(hoursPerDay, 1, 8), [hoursPerDay]);
   const isHalfDayPerDay = perDayHours <= 4;
-  const isExtendedDayPerDay = perDayHours > 4 && perDayHours <= 5.5;
+  const isExtendedDayPerDay = perDayHours > 4 && perDayHours < 5.5;
+  const isNearFullDayPerDay = perDayHours >= 5.5 && perDayHours <= 6.5;
   const perDayLabel = isHalfDayPerDay
     ? "Half-Day (up to 4 hours/day)"
     : isExtendedDayPerDay
-      ? "Extended coverage (up to 5.5 hours/day)"
-      : "Full-Day (up to 8 hours/day)";
+      ? "Extended coverage (4.5–5 hours/day)"
+      : isNearFullDayPerDay
+        ? "Near-full day (5.5–6.5 hours/day)"
+        : "Full-Day (7–8 hours/day)";
 
   const paceMeta = PACE[pace];
 
@@ -301,7 +306,9 @@ export default function Page() {
       ? BASE_PRICING.halfDay
       : isExtendedDayPerDay
         ? BASE_PRICING.extendedDay
-        : BASE_PRICING.fullDay;
+        : isNearFullDayPerDay
+          ? BASE_PRICING.nearFullDay
+          : BASE_PRICING.fullDay;
 
     const discount = multiDayDiscount(totalDays);
     const mult = 1 - discount;
@@ -326,7 +333,7 @@ export default function Page() {
     const high = (baseHighPerDay + addStation + addEnhanced + addMakeupCost) * totalDays;
 
     return { isCustom: false, low, mid, high, discount };
-  }, [totalDays, perDayHours, isHalfDayPerDay, isExtendedDayPerDay, stations, addEnhancedRetouch, addMakeup, makeupArtists]);
+  }, [totalDays, perDayHours, isHalfDayPerDay, isExtendedDayPerDay, isNearFullDayPerDay, stations, addEnhancedRetouch, addMakeup, makeupArtists]);
 
   // Wait-time status: comfortable capacity is buffered;
   // red begins only after the true top-end throughput is exceeded.
