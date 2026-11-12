@@ -1,9 +1,11 @@
 import { Resend } from "resend";
+import { syncPlannerInquiry } from "../../../lib/planner-intake";
 
 const OWNER_QUOTE_EMAIL = "cari@marketexpertly.com";
 const OWNER_QUOTE_FROM = "Headshot Pros AZ Planner <planner@headshotprosaz.com>";
 
 type QuotePayload = {
+  submissionId?: string;
   name: string;
   company: string;
   email: string;
@@ -195,10 +197,12 @@ export async function POST(req: Request) {
       </div>
     `;
 
+    const appNotice=await syncPlannerInquiry({source:"conference_planner",submissionId:body.submissionId,payload:body});
     const ownerHtml = `
       <div style="font-family:Arial,Helvetica,sans-serif; max-width:760px; color:#0f172a;">
         <div style="border-top:5px solid #DF9A2B; padding-top:18px;">
           <h2 style="margin-bottom:6px;">New Custom Quote Request</h2>
+          ${appNotice}
           <div style="font-size:18px; color:#475569;">${escapeHtml(body.company.trim())} • ${escapeHtml(eventType)}</div>
         </div>
 
@@ -270,3 +274,4 @@ export async function POST(req: Request) {
     );
   }
 }
+

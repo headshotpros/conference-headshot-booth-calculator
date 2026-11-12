@@ -1,6 +1,8 @@
 import { Resend } from "resend";
+import { syncPlannerInquiry } from "../../../lib/planner-intake";
 
 type Payload = {
+  submissionId?: string;
   email: string;
   firstName?: string;
   phone?: string;
@@ -162,9 +164,13 @@ export async function POST(req: Request) {
       html,
     });
 
+    const appNotice=body.intent==="ready_for_call" ? await syncPlannerInquiry({source:"conference_planner",submissionId:body.submissionId,payload:body}) : "";
+    const allDetails=Object.entries(body).filter(([key])=>key!=="submissionId").map(([key,value])=>`<p><strong>${escapeHtml(key.replace(/([a-z])([A-Z])/g,"$1 $2"))}:</strong> ${escapeHtml(typeof value==="boolean"?(value?"Yes":"No"):String(value??""))}</p>`).join("");
     const leadHtml = `
       <div>
         <h2>New Calculator Lead</h2>
+        ${appNotice}
+        ${allDetails}
         <p><strong>Name:</strong> ${firstName || "Not provided"}</p>
         <p><strong>Email:</strong> ${body.email}</p>
         <p><strong>Event Type:</strong> ${eventType}</p>
@@ -188,3 +194,4 @@ export async function POST(req: Request) {
     );
   }
 }
+

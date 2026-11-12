@@ -455,6 +455,13 @@ export default function Page() {
     }, 50);
   }
 
+  const quoteSubmission=useRef<{body:string;id:string}|null>(null);
+  const callSubmission=useRef<{body:string;id:string}|null>(null);
+  function submissionId(ref:{current:{body:string;id:string}|null}, payload:unknown){
+    const body=JSON.stringify(payload);
+    if(ref.current?.body!==body)ref.current={body,id:crypto.randomUUID()};
+    return ref.current.id;
+  }
   async function sendQuoteRequest() {
     setQuoteSending(true);
     setQuoteSentOk(false);
@@ -500,13 +507,14 @@ export default function Page() {
       const res = await fetch("/api/quote-request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({...payload,submissionId:submissionId(quoteSubmission,payload)})
       });
 
       const out = await res.json();
       if (!res.ok) throw new Error(out?.error || "Failed to send quote request");
 
       setQuoteClientCopySent(out?.clientCopySent !== false);
+      quoteSubmission.current=null;
       setQuoteSentOk(true);
     } catch (e: any) {
       setQuoteSendError(e?.message || "Failed to send quote request");
@@ -541,18 +549,20 @@ export default function Page() {
         disclaimerText: DISCLAIMER_TEXT,
 
         boothType,
-        optInWorksheet
+        optInWorksheet,
+        isMultiDay, days:totalDays, hoursPerDay:perDayHours, useParticipationEstimate, volumeInputMode, expectedHeadshots, attendees, participationRate, autoStations, addMakeup, makeupArtists, addEnhancedRetouch
       };
       const res = await fetch("/api/estimate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({...payload,submissionId:submissionId(callSubmission,payload)})
       });
 
       const out = await res.json();
 
 if (!res.ok) throw new Error(out?.error || "Failed to send estimate");
 
+callSubmission.current=null;
 setSentOk(true);
     } catch (e: any) {
       setSendError(e?.message || "Failed to send estimate");
