@@ -29,7 +29,9 @@ type QuotePayload = {
 
   isMultiDay: boolean;
   days: number;
-  hoursPerDay: number;
+  hoursPerDay?: number;
+  dailyHours?: number[];
+  totalHours?: number;
   useParticipationEstimate: boolean;
   volumeInputMode: "HEADSHOTS" | "ATTENDEES";
   expectedHeadshots: number;
@@ -125,8 +127,14 @@ export async function POST(req: Request) {
       detailRow("Photographer stations", body.stationsLabel || body.stations),
       detailRow("Estimated capacity", `${body.capacityLow}–${body.capacityHigh}`),
       ...(body.isMultiDay
-        ? [detailRow("Days", body.days), detailRow("Hours per day", body.hoursPerDay)]
-        : [detailRow("Hours on-site", body.hoursPerDay)]),
+        ? [
+            detailRow("Days", body.days),
+            ...(Array.isArray(body.dailyHours) && body.dailyHours.length
+              ? body.dailyHours.map((hours, index) => detailRow(`Day ${index + 1} — hours`, hours))
+              : [detailRow("Hours per day", body.hoursPerDay ?? "Not provided")]),
+            ...(typeof body.totalHours === "number" ? [detailRow("Total hours", body.totalHours)] : []),
+          ]
+        : [detailRow("Hours on-site", body.hoursPerDay ?? "Not provided")]),
       ...(body.useParticipationEstimate
         ? [
             detailRow("Expected demand", body.expectedHeadshotsLabel),
