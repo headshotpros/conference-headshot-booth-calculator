@@ -17,19 +17,6 @@ function roundToHalf(n: number) {
 function formatMoney(n: number) {
   return n.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 }
-function formatHoursToDaysHours(totalHours: number) {
-  const days = Math.floor(totalHours / 8);
-  const remainder = totalHours - days * 8;
-  const whole = Math.floor(remainder);
-  const half = remainder - whole >= 0.5 ? 0.5 : 0;
-  const minutes = half === 0.5 ? 30 : 0;
-
-  if (days <= 0) return minutes ? `${whole}h 30m` : `${whole}h`;
-  const parts: string[] = [`${days}d`];
-  if (whole) parts.push(`${whole}h`);
-  if (minutes) parts.push(`${minutes}m`);
-  return parts.join(" ");
-}
 
 // Public quote link button from this calculator
 const QUOTE_URL = "https://headshotprosaz.com/professional-headshot-booth-phoenix/#quote";
@@ -113,6 +100,8 @@ export default function Page() {
   const [isMultiDay, setIsMultiDay] = useState(false);
   const [days, setDays] = useState(1);
   const [hoursPerDay, setHoursPerDay] = useState(4);
+  const [differentHoursPerDay, setDifferentHoursPerDay] = useState(false);
+  const [individualDayHours, setIndividualDayHours] = useState<number[]>([4, 4, 4, 4, 4]);
 
   // Participation / volume inputs
   const [volumeInputMode, setVolumeInputMode] = useState<VolumeInputMode>("ATTENDEES");
@@ -205,25 +194,23 @@ export default function Page() {
   setQuoteSendError(null);
 }, [boothType]);
 
-  // Derived: total hours
-  const totalHours = useMemo(() => {
-    const d = clamp(days, 1, 5);
-    const hpd = clamp(hoursPerDay, 1, 8);
-    return isMultiDay ? d * hpd : clamp(hoursPerDay, 1, 8);
-  }, [isMultiDay, days, hoursPerDay]);
-
+  // Derived: each event day's hours, and the sum across all event days.
   const totalDays = useMemo(() => (isMultiDay ? clamp(days, 1, 5) : 1), [isMultiDay, days]);
-  const perDayHours = useMemo(() => clamp(hoursPerDay, 1, 8), [hoursPerDay]);
-  const isHalfDayPerDay = perDayHours <= 4;
-  const isExtendedDayPerDay = perDayHours > 4 && perDayHours < 5.5;
-  const isNearFullDayPerDay = perDayHours >= 5.5 && perDayHours <= 6.5;
-  const perDayLabel = isHalfDayPerDay
-    ? "Half-Day (up to 4 hours/day)"
-    : isExtendedDayPerDay
-      ? "Extended coverage (4.5–5 hours/day)"
-      : isNearFullDayPerDay
-        ? "Near-full day (5.5–6.5 hours/day)"
-        : "Full-Day (7–8 hours/day)";
+  const perDayHours = clamp(hoursPerDay, 1, 8);
+  const useIndividualDays = isMultiDay && differentHoursPerDay;
+  const dayHours = useMemo(() => Array.from({ length: totalDays }, (_, index) =>
+    useIndividualDays ? clamp(individualDayHours[index] ?? perDayHours, 1, 8) : perDayHours
+  ), [totalDays, useIndividualDays, individualDayHours, perDayHours]);
+  const totalHours = dayHours.reduce((sum, hours) => sum + hours, 0);
+  const perDayLabel = useIndividualDays
+    ? "Based on each day's coverage"
+    : perDayHours <= 4
+      ? "Half-Day (up to 4 hours/day)"
+      : perDayHours < 5.5
+        ? "Extended coverage (4.5–5 hours/day)"
+        : perDayHours <= 6.5
+          ? "Near-full day (5.5–6.5 hours/day)"
+          : "Full-Day (7–8 hours/day)";
 
   const paceMeta = PACE[pace];
 
@@ -298,42 +285,26 @@ export default function Page() {
     return computedExpectedHeadshots > absoluteCapacityHigh;
   }, [useParticipationEstimate, computedExpectedHeadshots, absoluteCapacityHigh]);
 
-  // Pricing: base range + add-ons + multiday discount
+  // Price each day independently. Discount the base package only; preserve staffing and add-on rates.
   const pricing = useMemo(() => {
-    if (totalDays > 5 || perDayHours > 8) return { isCustom: true, low: 0, mid: 0, high: 0, discount: 0 };
-
-    const base = isHalfDayPerDay
-      ? BASE_PRICING.halfDay
-      : isExtendedDayPerDay
-        ? BASE_PRICING.extendedDay
-        : isNearFullDayPerDay
-          ? BASE_PRICING.nearFullDay
-          : BASE_PRICING.fullDay;
-
     const discount = multiDayDiscount(totalDays);
     const mult = 1 - discount;
-
-    const baseLowPerDay = Math.round(base.low * mult);
-    const baseMidPerDay = Math.round(base.mid * mult);
-    const baseHighPerDay = Math.round(base.high * mult);
-
-    const secondStationPerDay = isHalfDayPerDay ? ADDONS.secondStation.halfDay : ADDONS.secondStation.fullDay;
-    const enhancedRetouchPerStationPerDay = isHalfDayPerDay
-      ? ADDONS.enhancedRetouchPerStation.halfDay
-      : ADDONS.enhancedRetouchPerStation.fullDay;
-    const makeupPerArtistPerDay = isHalfDayPerDay ? ADDONS.makeupArtist.halfDay : ADDONS.makeupArtist.fullDay;
-
-    const additionalStations = Math.max(0, stations - 1);
-    const addStation = secondStationPerDay * additionalStations;
-    const addEnhanced = addEnhancedRetouch ? enhancedRetouchPerStationPerDay * stations : 0;
-    const addMakeupCost = addMakeup ? makeupPerArtistPerDay * makeupArtists : 0;
-
-    const low = (baseLowPerDay + addStation + addEnhanced + addMakeupCost) * totalDays;
-    const mid = (baseMidPerDay + addStation + addEnhanced + addMakeupCost) * totalDays;
-    const high = (baseHighPerDay + addStation + addEnhanced + addMakeupCost) * totalDays;
-
+    let low = 0, mid = 0, high = 0;
+    for (const hours of dayHours) {
+      const halfDay = hours <= 4;
+      const base = halfDay ? BASE_PRICING.halfDay
+        : hours < 5.5 ? BASE_PRICING.extendedDay
+          : hours <= 6.5 ? BASE_PRICING.nearFullDay : BASE_PRICING.fullDay;
+      const rate = halfDay ? "halfDay" : "fullDay";
+      const extras = ADDONS.secondStation[rate] * Math.max(0, stations - 1)
+        + (addEnhancedRetouch ? ADDONS.enhancedRetouchPerStation[rate] * stations : 0)
+        + (addMakeup ? ADDONS.makeupArtist[rate] * makeupArtists : 0);
+      low += Math.round(base.low * mult) + extras;
+      mid += Math.round(base.mid * mult) + extras;
+      high += Math.round(base.high * mult) + extras;
+    }
     return { isCustom: false, low, mid, high, discount };
-  }, [totalDays, perDayHours, isHalfDayPerDay, isExtendedDayPerDay, isNearFullDayPerDay, stations, addEnhancedRetouch, addMakeup, makeupArtists]);
+  }, [dayHours, totalDays, stations, addEnhancedRetouch, addMakeup, makeupArtists]);
 
   // Wait-time status: comfortable capacity is buffered;
   // red begins only after the true top-end throughput is exceeded.
@@ -399,10 +370,9 @@ export default function Page() {
 
   const hoursLabel = useMemo(() => {
     if (!isMultiDay) return `${roundToHalf(perDayHours)} hours`;
-    const d = clamp(days, 1, 5);
-    const hpd = roundToHalf(perDayHours);
-    return `${d} day${d === 1 ? "" : "s"} × ${hpd} hours/day`;
-  }, [isMultiDay, perDayHours, days]);
+    if (useIndividualDays) return `${dayHours.map((hours, index) => `Day ${index + 1}: ${hours}h`).join("; ")} (${totalHours} hours total)`;
+    return `${totalDays} day${totalDays === 1 ? "" : "s"} × ${roundToHalf(perDayHours)} hours/day`;
+  }, [isMultiDay, useIndividualDays, dayHours, totalHours, perDayHours, totalDays]);
 
   const expectedHeadshotsLabel = useMemo(() => {
     if (!useParticipationEstimate || computedExpectedHeadshots == null) return "Not provided";
@@ -492,7 +462,9 @@ export default function Page() {
 
         isMultiDay,
         days: totalDays,
-        hoursPerDay: perDayHours,
+        hoursPerDay: useIndividualDays ? undefined : perDayHours,
+        dailyHours: useIndividualDays ? dayHours : undefined,
+        totalHours,
         useParticipationEstimate,
         volumeInputMode,
         expectedHeadshots,
@@ -550,7 +522,7 @@ export default function Page() {
 
         boothType,
         optInWorksheet,
-        isMultiDay, days:totalDays, hoursPerDay:perDayHours, useParticipationEstimate, volumeInputMode, expectedHeadshots, attendees, participationRate, autoStations, addMakeup, makeupArtists, addEnhancedRetouch
+        isMultiDay, days:totalDays, hoursPerDay:useIndividualDays ? undefined : perDayHours, dailyHours:useIndividualDays ? dayHours : undefined, totalHours, useParticipationEstimate, volumeInputMode, expectedHeadshots, attendees, participationRate, autoStations, addMakeup, makeupArtists, addEnhancedRetouch
       };
       const res = await fetch("/api/estimate", {
         method: "POST",
@@ -726,19 +698,60 @@ setSentOk(true);
                         <p className="mt-1 text-xs text-slate-500">1–5 days</p>
                       </div>
 
-                      <div>
-                        <label className="text-sm font-medium text-slate-700">Hours per day</label>
-                        <input
-                          type="number"
-                          min={1}
-                          max={8}
-                          step={0.5}
-                          value={hoursPerDay}
-                          onChange={(e) => setHoursPerDay(clamp(roundToHalf(parseFloat(e.target.value || "4")), 1, 8))}
-                          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
-                        />
-                        <p className="mt-1 text-xs text-slate-500">0.5-hour increments</p>
+                      {!useIndividualDays && (
+                        <div>
+                          <label className="text-sm font-medium text-slate-700" htmlFor="shared-hours">Hours per day</label>
+                          <input
+                            id="shared-hours"
+                            type="number"
+                            min={1}
+                            max={8}
+                            step={0.5}
+                            value={hoursPerDay}
+                            onChange={(e) => setHoursPerDay(clamp(roundToHalf(Number(e.target.value) || 4), 1, 8))}
+                            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+                          />
+                          <p className="mt-1 text-xs text-slate-500">0.5-hour increments</p>
+                        </div>
+                      )}
+                      <div className="sm:col-span-2">
+                        <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-slate-300"
+                            checked={differentHoursPerDay}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              if (checked) setIndividualDayHours(Array(5).fill(perDayHours));
+                              setDifferentHoursPerDay(checked);
+                            }}
+                          />
+                          Different hours on different days
+                        </label>
                       </div>
+                      {useIndividualDays && (
+                        <div className="sm:col-span-2 grid gap-3 sm:grid-cols-2">
+                          {dayHours.map((hours, index) => (
+                            <div key={index}>
+                              <label htmlFor={`day-hours-${index}`} className="text-sm font-medium text-slate-700">Day {index + 1} — hours</label>
+                              <input
+                                id={`day-hours-${index}`}
+                                type="number"
+                                min={1}
+                                max={8}
+                                step={0.5}
+                                value={hours}
+                                onChange={(e) => {
+                                  const nextHours = clamp(roundToHalf(Number(e.target.value) || 4), 1, 8);
+                                  setIndividualDayHours((previous) => previous.map((value, i) => i === index ? nextHours : value));
+                                }}
+                                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+                              />
+                            </div>
+                          ))}
+                          <p className="text-xs text-slate-500 sm:col-span-2">Each day is priced separately in 0.5-hour increments.</p>
+                        </div>
+                      )}
                     </>
                   ) : (
                     <div className="sm:col-span-2">
@@ -752,13 +765,13 @@ setSentOk(true);
                         onChange={(e) => setHoursPerDay(clamp(roundToHalf(parseFloat(e.target.value || "4")), 1, 8))}
                         className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
                       />
-                      <p className="mt-1 text-xs text-slate-500">Half-day pricing applies up to 4 hours. Full-day pricing applies over 4 hours (up to 8).</p>
+                      <p className="mt-1 text-xs text-slate-500">Pricing is based on coverage time, with half-day, extended and full-day rates.</p>
                     </div>
                   )}
                 </div>
 
                 <div className="mt-4 text-sm text-slate-600">
-                  Total time: <span className="font-medium text-slate-900">{formatHoursToDaysHours(totalHours)}</span>
+                  Total time: <span className="font-medium text-slate-900">{totalHours} hours</span>
                   {isMultiDay && totalDays >= 2 && <span className="ml-2 text-xs text-slate-500">(multi-day pricing applied)</span>}
                 </div>
               </div>
@@ -1140,7 +1153,7 @@ Enter the number of people who want headshots, or use total attendees to estimat
                       </div>
 
                       {pricing.discount > 0 && (
-                        <div className="mt-2 text-xs text-slate-500">Multi-day pricing applied ({Math.round(pricing.discount * 100)}% off per day).</div>
+                        <div className="mt-2 text-xs text-slate-500">Multi-day pricing applied ({Math.round(pricing.discount * 100)}% off base coverage).</div>
                       )}
                     </div>
 
